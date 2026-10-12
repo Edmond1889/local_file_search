@@ -11,6 +11,19 @@ from services.search_service import SearchService
 
 
 class ServiceTests(unittest.TestCase):
+    def test_progress_includes_failure_and_finishes_at_total(self):
+        repository, index = DemoRepository(), DemoVectorIndex()
+        callback = Mock()
+        AnalysisService(DemoScanner(), DemoImageLoader(), DemoImageEncoder(), repository, index).analyze('demo', callback)
+        self.assertEqual([call.args for call in callback.call_args_list], [(0, 3), (1, 3), (2, 3), (3, 3)])
+
+    def test_empty_folder_reports_zero_progress(self):
+        scanner, callback = Mock(), Mock()
+        scanner.scan.return_value = []
+        report = AnalysisService(scanner, Mock(), Mock(), Mock(), Mock()).analyze('empty', callback)
+        callback.assert_called_once_with(0, 0)
+        self.assertEqual(report.indexed_files, [])
+
     def test_analysis_and_search_share_file_ids(self):
         repository, index = DemoRepository(), DemoVectorIndex()
         analysis = AnalysisService(

@@ -1,3 +1,5 @@
+from typing import Callable
+
 from interface import FileScanner, ImageEncoder, ImageLoader, ImageLoadError, Repository, VectorIndex
 from models.analysis_report import AnalysisFailure, AnalysisReport
 
@@ -16,21 +18,35 @@ class AnalysisService:
         self.repository = repository
         self.vector_index = vector_index
 
-    def analyze(self, folder_path: str) -> AnalysisReport:
+    def analyze(
+        self, folder_path: str,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> AnalysisReport:
         report = AnalysisReport()
         # 폴더 검증과 사진 확장자 필터링은 사진 수집 담당자의 scan()이 맡는다.
-        for file in self.scanner.scan(folder_path):
+        files = self.scanner.scan(folder_path)
+        total = len(files)
+        # 콜백은 호출자가 전달한 함수다. GUI가 없어도 분석 서비스를 사용할 수 있다.
+        if on_progress is not None:
+            on_progress(0, total)
+        for processed, file in enumerate(files, start=1):
             try:
                 image = self.image_loader.load(file.path)
             except ImageLoadError as error:
                 # 손상 사진 하나 때문에 나머지 사진 분석까지 중단하지 않는다.
                 report.failures.append(AnalysisFailure(file=file, reason=str(error)))
+                # 실패한 사진도 처리 시도는 끝났으므로 진행 개수에 포함한다.
+                if on_progress is not None:
+                    on_progress(processed, total)
                 continue
             vector = self.image_encoder.encode(image)
             file_id = self.repository.save(file)
             # DB와 벡터 인덱스에 같은 ID를 써야 검색 후 실제 사진을 찾을 수 있다.
             self.vector_index.add(file_id, vector)
             report.indexed_files.append(file)
+            # 저장까지 성공한 뒤 진행 상황을 알린다. 저장 오류가 나면 여기까지 오지 않는다.
+            if on_progress is not None:
+                on_progress(processed, total)
         # 임베딩/저장 오류는 숨기지 않고 호출자에게 전달한다.
         # 동시 저장 실패 복구, 중복 분석, 디스크 저장은 담당자와 후속 합의가 필요하다.
         return report
