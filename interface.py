@@ -5,6 +5,8 @@
 from typing import Any, Protocol, Sequence
 from models.file_info import FileInfo
 
+# Sequence[float]는 순서가 있는 숫자 배열을 뜻한다. 데모는 list를 사용한다.
+# 실제 모델의 배열 자료형, 차원, 정규화 방식은 임베딩/검색 담당자가 합의해야 한다.
 Vector = Sequence[float]
 
 
@@ -14,6 +16,7 @@ class ImageLoadError(Exception):
 
 # Protocol은 필요한 함수의 모양을 정의한다.
 # 팀원 클래스는 이를 상속하지 않아도 동일한 함수를 제공하면 연결할 수 있다.
+# 타입 검사를 돕는 규격이며 실행 중 함수나 값의 타입을 자동으로 검사하지는 않는다.
 class FileScanner(Protocol):
     # 사용: services/analysis_service.py → AnalysisService.analyze()
     # 폴더에서 수집한 사진의 파일 정보 목록을 받아 분석 반복문을 시작한다.

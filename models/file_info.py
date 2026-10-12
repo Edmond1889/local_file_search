@@ -9,8 +9,8 @@ class FileInfo:
     name: str
     path: str
     extension: str
-    size: int
-    modified_time: float
+    size: int  # 파일 크기(바이트). 사진의 가로·세로 크기와는 다르다.
+    modified_time: float  # 파일 수정 시각. 초 단위 Unix timestamp를 사용한다는 초안이다.
 
 
 """

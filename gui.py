@@ -74,6 +74,7 @@ class PhotoSearchApp:
         self.query = tk.StringVar()
         self.query_entry = ttk.Entry(search_row, textvariable=self.query)
         self.query_entry.pack(side="left", fill="x", expand=True)
+        # bind는 이벤트 정보를 함수에 전달한다. 여기서는 그 정보 대신 search()만 실행한다.
         self.query_entry.bind("<Return>", lambda event: self.search())
         self.search_button = ttk.Button(search_row, text="검색", command=self.search, state="disabled")
         self.search_button.pack(side="left", padx=(6, 0))
@@ -121,7 +122,7 @@ class PhotoSearchApp:
     def clear_results(self):
         # 목록 데이터, 화면의 행, 미리보기를 함께 비워 이전 결과가 남지 않게 한다.
         self.results = []
-        self.result_list.delete(*self.result_list.get_children())
+        self.result_list.delete(*self.result_list.get_children())  # *로 모든 행 ID를 펼쳐 한 번에 삭제
         self.preview_image = None
         self.preview.configure(image="", text="결과를 선택하면 사진 정보를 표시합니다.")
         self.details.set("")
@@ -182,7 +183,7 @@ class PhotoSearchApp:
         self.clear_results()
         self.status.set("검색하는 중…")
         self.set_busy(True)
-        service = self.search_service
+        service = self.search_service  # 이번 검색에 사용할 객체를 작업 시작 전에 보관한다.
 
         def work():
             try:
