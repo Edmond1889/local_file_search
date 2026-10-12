@@ -33,8 +33,10 @@ def main():
         return
 
     for index, result in enumerate(results, start=1):
-        file = result["file"]
-        score = result["score"]
+        # result는 SearchResult 객체이므로 속성으로 파일 정보와 점수를 꺼낸다.
+        # result.file은 FileInfo 객체라서 name, path 등의 파일 정보에 접근할 수 있다.
+        file = result.file
+        score = result.score
 
         print(f"\n{index}. {file.name}")
         print(f"경로: {file.path}")
