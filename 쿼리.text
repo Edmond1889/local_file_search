@@ -1,0 +1,81 @@
+local_file_search/
+
+├── app.py
+│
+├── services/
+│   ├── analysis_service.py   ← 폴더 분석 연결
+│   └── search_service.py     ← 검색 연결
+│
+├── scanner/
+│   ├── file_scanner.py
+│   └── change_detector.py
+│
+├── database/
+│   ├── db.py
+│   └── repository.py
+│
+├── embedding/
+│   ├── image_encoder.py
+│   └── text_encoder.py
+│
+├── index/
+│   └── faiss_index.py
+│
+└── search/
+    ├── query_analyzer.py
+    └── ranking.py
+
+
+
+
+
+       담당 영역
+
+사용자
+ │
+ │ 폴더 선택
+ ▼
+┌──────────────────────────┐
+│       Application        │
+│        app.py            │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│     Analysis Service     │
+│  폴더 분석 전체 흐름 관리 │
+└────────────┬─────────────┘
+             │
+     ┌───────┴─────────┐
+     ▼                 ▼
+File Scanner       Change Detector
+     │
+     ▼
+Image Processor / Encoder
+     │
+     ▼
+SQLite + FAISS
+     │
+     │ 분석 완료
+     ▼
+┌──────────────────────────┐
+│      Search Service      │
+│  검색 전체 흐름 관리      │
+└────────────┬─────────────┘
+             │
+     자연어 검색어
+             │
+             ▼
+       Text Encoder
+             │
+             ▼
+        FAISS Search
+             │
+             ▼
+       SQLite Lookup
+             │
+             ▼
+         Ranking
+             │
+             ▼
+        SearchResult[]
