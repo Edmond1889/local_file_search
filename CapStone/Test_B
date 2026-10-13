@@ -1,0 +1,71 @@
+
+from pathlib import Path
+import time
+
+import numpy as np
+
+from embedding.image_encoder import ImageEncoder
+
+
+# 1. IMG 폴더에서 이미지 경로 자동 수집
+# 실제 프로그램에서는 파일 스캐너가 이 역할을 담당함
+image_folder = Path("IMG")
+
+image_paths = sorted(
+    path for path in image_folder.rglob("*")
+    if path.is_file()
+    and path.suffix.lower() in ImageEncoder.SUPPORTED_EXTENSIONS
+)
+
+print("발견한 이미지 수:", len(image_paths))
+
+if not image_paths:
+    raise RuntimeError("IMG 폴더에 이미지가 없습니다.")
+
+
+# 2. OpenCLIP 모델 준비
+encoder = ImageEncoder(batch_size=4)
+
+
+# 3. Batch 처리 시간 측정
+start_time = time.perf_counter()
+
+vectors, valid_paths, errors = encoder.encode_batch(image_paths)
+
+elapsed_time = time.perf_counter() - start_time
+
+
+# 4. 결과 출력
+print("\n===== Batch 처리 결과 =====")
+print("입력 이미지 수:", len(image_paths))
+print("성공한 이미지 수:", len(valid_paths))
+print("실패한 이미지 수:", len(errors))
+print("임베딩 배열 크기:", vectors.shape)
+print("데이터 타입:", vectors.dtype)
+print("처리 시간:", round(elapsed_time, 2), "초")
+
+if len(vectors) > 0:
+    print("각 벡터의 L2 크기:", np.linalg.norm(vectors, axis=1))
+
+if errors:
+    print("\n오류 목록:")
+    for error in errors:
+        print(error)
+
+
+# 5. 결과 검증
+assert len(valid_paths) + len(errors) == len(image_paths)
+assert vectors.shape == (len(valid_paths), 512)
+assert vectors.dtype == np.float32
+assert np.isfinite(vectors).all()
+
+if len(vectors) > 0:
+    assert np.allclose(
+        np.linalg.norm(vectors, axis=1),
+        1.0,
+        atol=1e-5
+    )
+
+assert len(errors) == 0, "처리에 실패한 이미지가 있습니다."
+
+print("\nBatch 처리 검증 성공!")
