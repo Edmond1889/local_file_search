@@ -1,50 +1,52 @@
 import os
 from PIL import Image
 
+
+from interface import FileScanner, ImageLoader, FileInfo, ImageLoadError
+
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
-def check_image(file_path):
-    try:
-        if os.path.getsize(file_path) == 0:
-            return False, "0바이트"
-    except OSError:
-        return False, "접근 실패"
+class DefaultFileScanner(FileScanner):
+ 
+    def scan(self, folder_path: str) -> list[FileInfo]:
+        file_list = []
+        if not os.path.exists(folder_path):
+            return file_list
 
-    try:
-        with Image.open(file_path) as img:
-            img.verify()
-        with Image.open(file_path) as img:
+        for root, _, files in os.walk(folder_path):
+            for file_name in files:
+                ext = os.path.splitext(file_name)[1].lower()
+                if ext in IMAGE_EXTENSIONS:
+                    abs_path = os.path.abspath(os.path.join(root, file_name))
+                    file_list.append(
+                        FileInfo(
+                            path=abs_path,
+                            name=file_name,
+                            ext=ext
+                        )
+                    )
+        return file_list
+
+
+class DefaultImageLoader(ImageLoader):
+
+    def load(self, file_path: str):
+
+        try:
+            if os.path.getsize(file_path) == 0:
+                raise ImageLoadError(f"0바이트 빈 파일입니다: {file_path}")
+        except OSError as e:
+            raise ImageLoadError(f"파일 접근 불가: {file_path} ({e})")
+
+
+        try:
+            with Image.open(file_path) as img:
+                img.verify()
+            
+  
+            img = Image.open(file_path)
             img.load()
-            img.convert("RGB")
-        return True, "정상"
-    except Exception as e:
-        return False, str(e)
-
-
-def collect_images(folder_path):
-    image_paths = []
-    failed_files = []
-
-    if not os.path.exists(folder_path):
-        return image_paths, failed_files
-
-    for root, _, files in os.walk(folder_path):
-        for file_name in files:
-            ext = os.path.splitext(file_name)[1].lower()
-            if ext in IMAGE_EXTENSIONS:
-                file_path = os.path.abspath(os.path.join(root, file_name))
-                is_valid, reason = check_image(file_path)
-                if is_valid:
-                    image_paths.append(file_path)
-                else:
-                    failed_files.append({"path": file_path, "reason": reason})
-
-    return image_paths, failed_files
-
-
-def load_image(file_path):
-    try:
-        return Image.open(file_path).convert("RGB")
-    except Exception:
-        return None
+            return img.convert("RGB")
+        except Exception as e:
+            raise ImageLoadError(f"손상된 이미지 파일입니다: {file_path} ({e})")
