@@ -10,8 +10,8 @@ class ImageEncoder:
 
     def __init__(
         self,
-        model_name="ViT-B-32",
-        pretrained="laion2b_s34b_b79k",
+        model_name="xlm-roberta-base-ViT-B-32",
+        pretrained="laion5b_s13b_b90k",
         device=None,
         batch_size=8
     ):
