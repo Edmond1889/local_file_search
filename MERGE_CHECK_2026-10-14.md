@@ -70,3 +70,7 @@ _preprocess_image()에서 isinstance(image, Image.Image)를 검사하며 문자�
 RealServiceFactory와 인코더 어댑터를 추가하고 기본 GUI에 실제 사진·SQLite·FAISS를 연결했다. 문장 encode_text()를 서비스 encode()로 변환한다. 재분석은 새 임시 DB/인덱스를 사용하며 모델은 재사용한다. 기존 DB 파일은 변경하지 않는다. requirements-app.txt와 README에 설치·실행 방법을 정리했다.
 
 최종 테스트는 25개 통과했다. 실제 모델은 미설치라 테스트 인코더로 연결을 검증했으며, AI 검색 품질과 영구 저장·불러오기는 남아 있다. 위 22개 기록은 인코더·GUI 연결 이전 시점이다.
+
+## 실제 AI 모델 후속 확인
+
+Python 3.14.3 환경에 모델 라이브러리를 설치하고 실제 모델로 CapStone/IMG 사진 3장을 분석했다. 성공 3장·실패 0장이며 ‘하품하는 고양이’는 Test2.jpg, ‘고양이 얼굴 클로즈업’은 Test3.jpg가 1위였다. 원본 사진은 수정하지 않았다. 결과는 CAT_SEARCH_CHECK_2026-10-14.json에 기록했다. 위 미설치·미검증 기록은 이전 시점이며, 현재도 다양한 사진의 검색 품질·실제 GUI에서의 최종 검색은 추가 확인이 필요하다.
