@@ -13,6 +13,7 @@ class FileInfo:
     file_size: int
     file_hash: str
     created_at: str
+    updated_at: str  
     file_id: Optional[int] = None
 
 class Repository:
@@ -31,9 +32,10 @@ class Repository:
                 file_extension TEXT NOT NULL,
                 file_size INTEGER,
                 file_hash TEXT,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
             )
-        """)
+        """)  
         conn.commit()
         conn.close()
 
@@ -41,15 +43,16 @@ class Repository:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO image_metadata (file_path, file_name, file_extension, file_size, file_hash, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO image_metadata (file_path, file_name, file_extension, file_size, file_hash, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             file_info.file_path,
             file_info.file_name,
             file_info.file_extension,
             file_info.file_size,
             file_info.file_hash,
-            file_info.created_at
+            file_info.created_at,
+            file_info.updated_at 
         ))
         file_id = cursor.lastrowid
         conn.commit()
@@ -60,7 +63,7 @@ class Repository:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT file_id, file_path, file_name, file_extension, file_size, file_hash, created_at
+            SELECT file_id, file_path, file_name, file_extension, file_size, file_hash, created_at, updated_at
             FROM image_metadata
             WHERE file_id = ?
         """, (file_id,))
@@ -75,7 +78,8 @@ class Repository:
                 file_extension=row[3],
                 file_size=row[4],
                 file_hash=row[5],
-                created_at=row[6]
+                created_at=row[6],
+                updated_at=row[7]  
             )
         return None
 
