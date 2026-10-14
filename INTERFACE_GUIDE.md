@@ -53,3 +53,17 @@ Python 주석의 경로는 사용 위치 안내이며, Markdown 링크와 동일
 `gui.py`는 작업 스레드에서 분석/검색을 수행하고, 큐에 알림을 넣는다.
 메인 스레드의 `PhotoSearchApp.poll_events()`가 큐를 읽어 화면을 갱신한다.
 콜백 자체의 오류도 호출자에게 전달되므로 콜백은 간단하고 빠르게 실행되는 함수로 작성한다.
+
+
+## 2026-10-14 최신 연결 상태
+
+현재 이미지 로더는 경로를 받아 PIL 이미지를 반환하고, ImageEncoder.encode()는 그 PIL 이미지를 받는다.
+스캐너의 FileInfo 생성 인자는 수정됐다. RepositoryAdapter는 파일 수정 시각 modified_time을 UTC 문자열 updated_at으로 저장하고 조회 시 복원한다.
+KoreanTextEncoder는 encode_text()를 제공하지만 SearchService는 encode()를 호출하므로 연결이 필요하다.
+정확한 검증 결과와 남은 작업은 [최신 병합 점검](./MERGE_CHECK_2026-10-14.md)을 참고한다.
+
+## 실제 GUI 연결
+
+기본 GUI는 real_services.RealServiceFactory에서 실제 로더·인코더·SQLite·FAISS를 생성한다. TextEncoderAdapter가 encode()를 encode_text()에 연결하고, ImageEncoderAdapter는 현재 PIL 입력을 그대로 전달하면서 벡터를 검사한다. 분석과 검색은 동일한 RepositoryAdapter와 VectorIndex를 공유한다.
+
+분석마다 새 임시 DB와 메모리 인덱스를 사용한다. --demo 옵션은 기존 가상 데이터 실행이다. 설치와 실제 모델 검증 범위는 README를 참고한다.
