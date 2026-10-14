@@ -1,0 +1,4 @@
+# 기본 GUI 의존성 + 실제 DB/FAISS 연결 검증용 의존성. AI 모델은 별도다.
+-r requirements.txt
+numpy>=1.25,<3
+faiss-cpu==1.15.1

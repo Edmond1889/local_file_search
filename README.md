@@ -61,10 +61,17 @@ Pillow는 설치 이름이며 코드에서 사용하는 이름은 `PIL`이다.
 
 ## 원본 구현과의 연결 상태
 
-- `CapStone/embedding/image_encoder.py`는 사진 경로를 입력으로 받는다.
-  현재 서비스 초안은 읽은 이미지를 전달하므로 입력 규격 합의 또는 어댑터가 필요하다.
-- `db_manager.py`는 파일 정보와 벡터를 함께 저장하고 검색 시 파일 정보까지 반환한다.
-  현재 Repository/VectorIndex 분리 초안과 연결 방법을 합의해야 한다.
+- `CapStone/embedding/image_encoder.py`는 현재 PIL 이미지를 입력으로 받는다.
+  서비스의 이미지 입력 규격과 맞지만, 실제 모델 설치 및 GUI 연결 검증은 별도다.
+- `db_manager.py`는 Repository와 VectorIndex로 분리되어 있다.
+  공통 FileInfo와 DB FileInfo의 필드 차이는 RepositoryAdapter로 변환한다.
 - requirements.txt는 이 연결 데모의 미리보기 의존성만 담는다.
   원본의 AI 모델/FAISS까지 설치하는 전체 프로젝트 의존성 목록은 아니다.
 - 기존 실제 구현 파일과 테스트 사진은 이번 변경에서 수정하지 않는다.
+
+
+## DB 어댑터
+
+공통 FileInfo에 file_hash와 created_at을 추가했다.
+필드 변환과 requirements-db.txt 설치 방법은 [DB 어댑터 가이드](./DB_ADAPTER_GUIDE.md)를 참고한다.
+기본 GUI는 여전히 데모이며, 팀원 구현 파일은 수정하지 않았다.
