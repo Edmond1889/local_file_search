@@ -1,8 +1,6 @@
-"""기본 GUI 초안. 기본 실행은 고정된 가짜 사진을 사용하는 연결 데모다.
+"""실제 사진 검색 GUI. --demo 옵션으로 가상 데이터 연결도 확인할 수 있다.
 
-읽는 순서: __init__(화면 준비) → analyze()/search()(작업 시작)
-→ Queue(결과 전달) → poll_events()(화면 갱신) → show_preview()(선택 사진 표시).
-"""
+작업 스레드 → Queue → 메인 스레드 순서로 화면을 갱신한다."""
 from pathlib import Path
 from queue import Empty, Queue
 from threading import Thread
@@ -28,11 +26,13 @@ def build_demo_services():
 
 
 class PhotoSearchApp:
-    def __init__(self, root, service_factory=build_demo_services, demo=True):
+    def __init__(self, root, service_factory=None, demo=False):
         # 1. 작업 상태를 보관하고, 창과 화면 부품을 만든다.
         # 실제 연결 시 동일한 저장소/인덱스를 공유하는 두 서비스를 만드는 함수를 전달한다.
         self.root = root
-        self.service_factory = service_factory
+        # 실제 연결은 처음 분석할 때 모델을 읽고, 이후 분석에서는 재사용한다.
+        from real_services import RealServiceFactory
+        self.service_factory = service_factory or (build_demo_services if demo else RealServiceFactory())
         self.demo = demo
         self.events = Queue()  # 작업 스레드 → 메인 스레드로 메시지를 전달하는 통로
         self.busy = False  # 분석/검색 중인지 표시해 중복 실행을 막는다.
@@ -52,6 +52,9 @@ class PhotoSearchApp:
                 "연결 데모: 선택한 폴더의 실제 사진을 읽지 않습니다. 가상 사진 3개와 고정 벡터를 사용하며, "
                 "검색 문장에 관계없이 결과가 같습니다."
             )).pack(anchor="w", pady=(6, 12))
+
+        if not demo:
+            ttk.Label(frame, wraplength=850, text="분석할 때마다 이전 결과를 교체합니다. 앱을 다시 실행하면 재분석해주세요.").pack(anchor="w", pady=(6, 12))
 
         # 폴더 선택 영역: command는 버튼을 클릭할 때 호출할 함수다.
         folder_row = ttk.Frame(frame)
@@ -154,7 +157,7 @@ class PhotoSearchApp:
         self.clear_results()
         self.set_failures("")
         self.progress.configure(value=0)
-        self.status.set("사진 목록을 준비하는 중…")
+        self.status.set("사진 목록을 준비하는 중…" if self.demo else "모델과 사진 목록을 준비하는 중… 첫 실행은 모델 다운로드가 필요할 수 있습니다.")
         self.set_busy(True)
 
         def work():
@@ -254,6 +257,10 @@ class PhotoSearchApp:
 
 if __name__ == "__main__":
     # 이 파일을 직접 실행할 때만 창을 만든다. import할 때는 창이 뜨지 않는다.
+    import argparse
+    parser = argparse.ArgumentParser(description="문장으로 로컬 사진 검색")
+    parser.add_argument("--demo", action="store_true", help="모델 없이 가상 데이터로 실행")
+    args = parser.parse_args()
     window = tk.Tk()
-    PhotoSearchApp(window)
+    PhotoSearchApp(window, demo=args.demo)
     window.mainloop()  # 클릭, 키 입력, after() 예약 등을 처리하는 GUI 이벤트 루프

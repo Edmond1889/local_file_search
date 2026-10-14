@@ -1,5 +1,6 @@
 """DB 담당자의 코드를 수정하지 않고 공통 FileInfo를 저장·조회한다."""
 from dataclasses import fields
+from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 
@@ -23,6 +24,29 @@ class RepositoryAdapter:
                 digest.update(block)
         return digest.hexdigest()
 
+    @staticmethod
+    def _to_updated_at(modified_time: float | None) -> str:
+        # 합의한 의미: DB의 updated_at은 사진 파일의 수정 시각이다.
+        # Unix timestamp를 시간대가 표시된 UTC 문자열로 바꾼다.
+        if modified_time is None:
+            return ""  # 알 수 없는 시각을 현재 시각이나 0으로 만들어 넣지 않는다.
+        return datetime.fromtimestamp(modified_time, tz=timezone.utc).isoformat(
+            timespec="microseconds"
+        )
+
+    @staticmethod
+    def _from_updated_at(updated_at: str) -> float | None:
+        if not updated_at:
+            return None
+        try:
+            # Z 표기도 UTC로 읽는다. 시간대 없는 문자열은 임의로 해석하지 않는다.
+            timestamp = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            if timestamp.tzinfo is None:
+                return None
+            return timestamp.timestamp()
+        except (AttributeError, TypeError, ValueError, OverflowError, OSError):
+            return None
+
     def save(self, file_info: FileInfo) -> int:
         # 값이 이미 있으면 유지한다. 비어 있는 해시/생성 시각만 보완한다.
         file_hash = file_info.file_hash or self._file_hash(file_info.path)
@@ -35,10 +59,12 @@ class RepositoryAdapter:
             "file_hash": file_hash,
             "created_at": created_at,
         }
-        # DB 담당자가 modified_time을 추가한 버전도 같은 어댑터로 연결한다.
-        # 현재 DB 버전에 없는 인자를 넘겨 TypeError가 발생하지 않게 확인한다.
-        if any(item.name == "modified_time" for item in fields(DatabaseFileInfo)):
+        # DB 버전별 필드 이름 차이를 우리 쪽에서 흡수한다.
+        database_fields = {item.name for item in fields(DatabaseFileInfo)}
+        if "modified_time" in database_fields:
             values["modified_time"] = file_info.modified_time
+        if "updated_at" in database_fields:
+            values["updated_at"] = self._to_updated_at(file_info.modified_time)
 
         database_info = DatabaseFileInfo(**values)
         file_id = self.repository.save(database_info)
@@ -56,7 +82,12 @@ class RepositoryAdapter:
         # DB가 수정 시각을 제공하면 그 값을 우선 사용한다.
         modified_time = getattr(database_info, "modified_time", None)
         if modified_time is None:
-            # 구버전 DB에는 이 항목이 없다. 아래 값은 분석 당시가 아닌 현재 파일의 수정 시각이다.
+            modified_time = self._from_updated_at(
+                getattr(database_info, "updated_at", "")
+            )
+        if modified_time is None:
+            # 저장된 수정 시각을 복원할 수 없는 구버전/빈 값만 실제 파일에서 보완한다.
+            # 이 경우에만 아래 값이 분석 당시가 아닌 현재 파일의 수정 시각이다.
             try:
                 modified_time = Path(database_info.file_path).stat().st_mtime
             except OSError:

@@ -1,77 +1,119 @@
 # local_file_search
-자연어 기반 로컬 파일 검색 시스템
 
-## 실행 준비
+문장으로 내 컴퓨터의 사진을 찾는 캡스톤 프로젝트.
 
-아래 연결 데모는 Python 3.10 이상과 Tkinter가 필요하다. 현재 Python 3.14.3에서 서비스 테스트를 확인했다.
-VS Code의 `Python: Select Interpreter`에서 실제 Python 실행 파일을 선택하고 새 터미널을 연다.
+## 현재 상태 — 2026-10-14
 
-```powershell
-python -m pip install -r requirements.txt
+기본 GUI에 팀원 구현을 연결했다. 폴더의 실제 사진을 읽고 이미지 인코더로 벡터화한 뒤 SQLite와 FAISS에 저장한다. 검색 문장은 문장 인코더를 거쳐 사진과 비교하며 결과 사진을 미리 볼 수 있다.
+
+팀원 로더·DB·인코더 원본 코드는 수정하지 않았다. 우리 쪽 어댑터가 함수 이름·파일 정보·벡터 형식을 맞춘다.
+
+**현재 저장 범위는 한 번의 분석 세션이다.** 분석 시작마다 새 임시 DB와 메모리 인덱스를 만들고 이전 분석 결과를 교체한다. 앱을 다시 실행하면 재분석해야 한다. 기존 DB 파일은 읽거나 변경하지 않는다. 영구 저장·불러오기와 기존 DB 이전은 아직 연결하지 않았다.
+
+## 설치와 실행
+
+VS Code에서 사용할 Python 인터프리터를 선택한 뒤 새 터미널에서 실행한다. Tkinter가 포함된 Python이 필요하다.
+
+~~~powershell
+python -m pip install -r requirements-app.txt
 python gui.py
-```
+~~~
 
-`python` 명령이 버전이나 결과 대신 `Python`만 출력하면 Windows 실행 별칭을 호출하는지 확인한다.
-이 경우 실제 실행 파일을 지정한다: `& '실제 Python 실행 파일 경로' gui.py`.
-Pillow는 설치 이름이며 코드에서 사용하는 이름은 `PIL`이다.
+1. 폴더를 선택하고 **분석 시작**을 누른다.
+2. 처음에는 모델과 토크나이저 다운로드에 인터넷 연결과 시간이 필요할 수 있다.
+3. 분석이 끝나면 찾고 싶은 사진을 문장으로 입력한다.
+4. 결과를 선택하면 사진 미리보기와 파일 경로가 표시된다.
 
-## 현재 범위
+지원 확장자는 JPG, JPEG, PNG, WEBP다. 하위 폴더도 탐색한다. 손상된 사진은 실패 목록에 표시하고 다음 사진을 처리한다. 그 외 모델·저장 오류는 화면에 표시하고 분석을 중단한다.
 
-두 서비스는 각 팀원의 기능을 호출하는 연결 계층이다. `interface.py`는 합의 전 규격 초안이다.
-원본 저장소의 실제 임베딩·DB·FAISS 구현과 아래 연결 데모는 아직 직접 연결되지 않았다.
+설치한 라이브러리는 위 명령을 실행한 Python 환경에 있어야 한다. Windows에서 python 명령이 Python만 출력한다면 실행 별칭 대신 실제 실행 파일 경로를 사용한다.
 
-- 분석: 사진 수집 → 이미지 읽기 → 임베딩 → 파일 정보 저장 → 같은 ID로 벡터 저장
-- 검색: 문장 임베딩 → 벡터 검색 → 파일 ID로 정보 조회 → SearchResult 반환
-- 사진 읽기 실패는 ImageLoadError로 전달받아 보고서에 남기고 다음 사진을 처리한다.
-- 임베딩/저장 오류와 검색 결과의 없는 파일 ID는 호출자에게 오류로 전달한다.
+~~~powershell
+& '실제 Python 실행 파일 경로' -m pip install -r requirements-app.txt
+& '실제 Python 실행 파일 경로' gui.py
+~~~
 
-## 연결 데모
+현재 로컬 검증용 Python은 3.14.3이다. 이 환경에서 torch·open_clip은 미설치이므로 실제 모델 실행 호환성까지 확인한 상태는 아니다. 실제 모델에는 이미지·문장 인코더가 각각 모델을 로드하므로 충분한 메모리도 필요하다.
 
-`python app.py`로 가상 사진 3개 중 성공 2개, 읽기 실패 1개를 재현한다.
-고정 벡터와 메모리 저장소를 사용하며 모든 검색 문장에 같은 순서를 반환한다.
-실제 사진 검색 성능이나 영구 저장을 검증하는 예제가 아니다.
+## 모델 없이 데모 실행
 
-## 기본 GUI
+~~~powershell
+python gui.py --demo
+python app.py
+~~~
 
-`python gui.py`로 폴더 선택, 분석 진행률, 검색창, 결과 목록과 미리보기 영역을 사용한다.
-기본 실행은 연결 데모다. 선택한 폴더의 실제 사진은 분석하지 않고 가상 사진을 처리한다.
-진행 숫자에는 성공과 읽기 실패를 모두 포함한다. 분석/검색은 작업 스레드에서 실행하고,
-큐를 통해 결과를 받아 메인 스레드에서 화면을 갱신한다.
+GUI 데모만 사용하려면 모델 라이브러리 없이 실행할 수 있다. Pillow는 미리보기용이다.
 
-팀원 구현 연결 시 `PhotoSearchApp(root, service_factory=실제_서비스_생성함수, demo=False)`로
-실제 서비스를 전달한다. 실제 이미지 미리보기에는 Pillow가 필요하다.
+~~~powershell
+python -m pip install Pillow
+python gui.py --demo
+~~~
 
-## 합의할 사항
+데모는 가상 사진 3개 중 성공 2개·읽기 실패 1개를 재현한다. 검색 문장에 관계없이 고정된 결과를 반환한다. app.py는 기존 콘솔 데모로 유지했다.
 
-- 이미지 자료형, 벡터 차원과 정규화 방식
-- DB 파일 ID와 FAISS ID 연결
-- 높은 유사도부터 반환한다는 초안 규격 (거리 사용 시 변환 필요)
-- 폴더 검증, 읽기 오류 전달, GUI 진행 상황 전달
-- 재분석 시 중복 처리, DB/인덱스 저장 실패 복구, 저장·불러오기
+## 기능 연결
 
-실제 연결 시 app.py의 가짜 객체를 팀원 구현으로 교체한다.
-두 서비스에는 같은 저장소와 벡터 인덱스를 전달해야 한다.
+~~~text
+GUI → RealServiceFactory
+분석: DefaultFileScanner → DefaultImageLoader → ImageEncoderAdapter
+    → RepositoryAdapter → SQLite
+    → 같은 파일 ID로 FAISS 저장
+검색: TextEncoderAdapter → 같은 FAISS 검색
+    → 같은 RepositoryAdapter에서 파일 정보 조회 → GUI 미리보기
+~~~
 
-함수별 역할과 실제 호출 위치는 [연결 규격 가이드](./INTERFACE_GUIDE.md)를 참고한다.
+| 연결 부분 | 실제 규격 | 우리 쪽 처리 |
+|---|---|---|
+| 이미지 로더 | 경로 → PIL RGB 이미지 | 읽은 이미지를 인코더로 전달 |
+| 이미지 인코더 | encode(PIL 이미지) → 512차원 벡터 | ImageEncoderAdapter가 배열 형식·차원·유효값 검사 |
+| 문장 인코더 | encode_text(문장) → 벡터 | TextEncoderAdapter가 서비스의 encode()로 연결 |
+| DB | DB용 FileInfo 저장·조회 | RepositoryAdapter가 공통 필드 이름과 시각 표현 변환 |
+| FAISS | NumPy float32 배열과 파일 ID | 분석·검색에서 동일한 인덱스 객체 공유 |
+
+두 인코더는 동일한 모델 이름 xlm-roberta-base-ViT-B-32와 가중치 laion5b_s13b_b90k를 사용한다. 모델은 첫 분석 때 작업 스레드에서 로드하고 이후 재분석에서는 재사용한다. 화면 갱신은 Queue를 통해 메인 스레드에서 처리한다.
+
+현재 병합된 이미지 인코더는 PIL 이미지 입력이다. 경로 입력으로 바꾼 별도 버전의 반영 여부는 담당자 확인이 필요하다.
+
+### 파일 정보 대응
+
+| 서비스 | DB | 변환 |
+|---|---|---|
+| path | file_path | 경로 |
+| name | file_name | 이름 |
+| extension | file_extension | 확장자 |
+| size | file_size | 바이트 단위 크기 |
+| modified_time | updated_at | Unix timestamp ↔ 시간대가 표시된 UTC 문자열 |
+| file_hash | file_hash | 유지, 빈 값이면 실제 파일의 SHA-256 계산 |
+| created_at | created_at | 유지, 빈 값이면 저장 요청 시각으로 보완 |
+| 별도 필드 없음 | file_id | DB 반환 ID를 FAISS에도 사용 |
+
+updated_at은 사진 파일의 수정 시각이다. created_at은 파일 정보 객체 생성 시각이며 실제 사진 파일 생성 시각과 다르다.
+
+## 의존성 목록
+
+- requirements.txt: 팀원 모델 의존성 목록.
+- requirements-db.txt: 위 목록에 NumPy·FAISS 추가.
+- requirements-app.txt: 위 목록에 Pillow·다국어 모델용 transformers·sentencepiece 추가. 실제 GUI 실행 시 사용한다.
 
 ## 검증
 
-`python -m unittest discover -s tests -v`로 연결 규격, 읽기 실패 후 계속 처리,
-검색 문장 전달, 파일 ID 조회와 저장 오류 전달을 검증한다.
+~~~powershell
+python -m unittest discover -s tests -v
+~~~
 
-## 원본 구현과의 연결 상태
+테스트 25개 통과. 실제 임시 사진·손상 사진·스캐너·로더·SQLite·FAISS를 사용해 분석부터 검색까지 검증했다. 별도 작업 스레드 간 조회, 재분석, 검색 결과에 따른 파일 정보 복원도 확인했다.
 
-- `CapStone/embedding/image_encoder.py`는 현재 PIL 이미지를 입력으로 받는다.
-  서비스의 이미지 입력 규격과 맞지만, 실제 모델 설치 및 GUI 연결 검증은 별도다.
-- `db_manager.py`는 Repository와 VectorIndex로 분리되어 있다.
-  공통 FileInfo와 DB FileInfo의 필드 차이는 RepositoryAdapter로 변환한다.
-- requirements.txt는 이 연결 데모의 미리보기 의존성만 담는다.
-  원본의 AI 모델/FAISS까지 설치하는 전체 프로젝트 의존성 목록은 아니다.
-- 기존 실제 구현 파일과 테스트 사진은 이번 변경에서 수정하지 않는다.
+AI 인코더는 테스트용 벡터 생성기로 대체했다. 실제 모델 다운로드·실행과 한국어 검색 품질, 사용자 화면에서의 검색 결과 확인은 남아 있다.
 
+## 남은 협업
 
-## DB 어댑터
+- 이미지 인코더의 최종 입력 규격 확정.
+- 실제 모델 설치 및 한국어 문장 검색 품질 확인.
+- DB와 FAISS의 영구 저장·불러오기 및 기존 DB 컬럼 이전 정책.
+- 누적 분석 시 중복 파일 갱신, 해시 재계산, 일부 저장 실패 복구 정책.
 
-공통 FileInfo에 file_hash와 created_at을 추가했다.
-필드 변환과 requirements-db.txt 설치 방법은 [DB 어댑터 가이드](./DB_ADAPTER_GUIDE.md)를 참고한다.
-기본 GUI는 여전히 데모이며, 팀원 구현 파일은 수정하지 않았다.
+## 관련 문서
+
+- [함수 규격과 사용 위치](./INTERFACE_GUIDE.md)
+- [DB 어댑터 연결](./DB_ADAPTER_GUIDE.md)
+- [병합 점검과 후속 연결 기록](./MERGE_CHECK_2026-10-14.md)

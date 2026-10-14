@@ -1,5 +1,6 @@
 """실제 SQLite/FAISS와 연결하되 AI 모델 대신 명시적인 테스트 벡터를 사용한다."""
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import importlib.util
 import os
@@ -29,6 +30,8 @@ class RepositoryAdapterTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.photo = self.root / "sample.png"
         Image.new("RGB", (8, 8), "red").save(self.photo)
+        # 소수점 마이크로초까지 저장·복원할 수 있는 고정 파일 수정 시각으로 검증한다.
+        os.utime(self.photo, (1700000000.125, 1700000000.125))
         self.db_path = str(self.root / "metadata.db")
         self.database = DatabaseRepository(self.db_path)
         self.adapter = RepositoryAdapter(self.database)
@@ -63,16 +66,42 @@ class RepositoryAdapterTests(unittest.TestCase):
         self.assertEqual(stored.file_hash, "provided-hash")
         self.assertEqual(stored.created_at, self.info.created_at)
 
+    def test_updated_at_is_utc_file_time_not_database_save_time(self):
+        file_id = self.adapter.save(self.info)
+        stored = self.database.find_by_id(file_id)
+        timestamp = datetime.fromisoformat(stored.updated_at)
+        self.assertEqual(timestamp.utcoffset(), timedelta(0))
+        self.assertAlmostEqual(timestamp.timestamp(), 1700000000.125, delta=0.000001)
+
+    def test_unknown_modification_time_is_not_fabricated(self):
+        self.info.modified_time = None
+        file_id = self.adapter.save(self.info)
+        self.assertEqual(self.database.find_by_id(file_id).updated_at, "")
+        self.photo.unlink()
+        self.assertIsNone(self.adapter.find_by_id(file_id).modified_time)
+
+    def test_timezone_offset_is_restored_without_reading_deleted_file(self):
+        file_id = self.adapter.save(self.info)
+        stored = self.database.find_by_id(file_id)
+        stored.updated_at = datetime.fromtimestamp(
+            1700000000.125, timezone(timedelta(hours=9))
+        ).isoformat(timespec="microseconds")
+        database = Mock()
+        database.find_by_id.return_value = stored
+        self.photo.unlink()
+        restored = RepositoryAdapter(database).find_by_id(file_id)
+        self.assertAlmostEqual(restored.modified_time, 1700000000.125, delta=0.000001)
+
     def test_missing_id_returns_none(self):
         self.assertIsNone(self.adapter.find_by_id(999))
 
-    def test_deleted_file_keeps_metadata_with_unknown_modification_time(self):
+    def test_deleted_file_keeps_persisted_modification_time(self):
         file_id = self.adapter.save(self.info)
         self.photo.unlink()
         restored = self.adapter.find_by_id(file_id)
         self.assertEqual(restored.path, self.info.path)
         self.assertEqual(restored.file_hash, self.info.file_hash)
-        self.assertIsNone(restored.modified_time)
+        self.assertAlmostEqual(restored.modified_time, self.info.modified_time, delta=0.000001)
 
     def test_missing_file_is_not_written_to_database(self):
         self.photo.unlink()
@@ -81,11 +110,12 @@ class RepositoryAdapterTests(unittest.TestCase):
         self.assertIsNone(self.database.find_by_id(1))
         self.assertEqual(self.info.file_hash, "")
 
-    def test_current_file_time_is_used_when_database_has_no_field(self):
+    def test_saved_modification_time_is_preserved_when_file_changes(self):
         file_id = self.adapter.save(self.info)
         os.utime(self.photo, (1700000000, 1700000000))
         restored = self.adapter.find_by_id(file_id)
-        self.assertEqual(restored.modified_time, self.photo.stat().st_mtime)
+        self.assertAlmostEqual(restored.modified_time, self.info.modified_time, delta=0.000001)
+        self.assertNotEqual(restored.modified_time, self.photo.stat().st_mtime)
 
     def test_future_database_modification_time_is_forwarded_and_preserved(self):
         @dataclass
@@ -110,7 +140,7 @@ class RepositoryAdapterTests(unittest.TestCase):
         self.assertEqual(adapter.find_by_id(42).modified_time, self.info.modified_time)
 
     def test_services_share_actual_database_and_faiss_through_adapter(self):
-        # 팀원 스캐너의 FileInfo 생성 문제와 모델 다운로드를 이 DB 연결 테스트에서 분리한다.
+        # 사진 수집과 모델 다운로드를 이 DB 연결 테스트에서 분리한다.
         scanner = Mock()
         scanner.scan.return_value = [self.info]
         image_encoder, text_encoder = Mock(), Mock()
