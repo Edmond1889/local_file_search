@@ -37,6 +37,7 @@
 | [gui.py](../gui.py) | Tkinter 화면·작업 스레드·미리보기 | 기본은 실제, --demo만 가상 |
 | [app.py](../app.py) | 고정 데이터 콘솔 데모 | 가상 데모 전용 |
 | [demo/demo_adapters.py](../demo/demo_adapters.py) | 가상 스캐너·로더·인코더·저장소 | 가상 데모·테스트용 |
+| [services/report_writer.py](../services/report_writer.py) | GUI 분석 결과를 JSON으로 저장 | 실제 실행 기록 |
 | [tests/](../tests/) | 서비스·DB 어댑터·GUI 연결 검증 | 검증 코드 |
 
 이는 사용자의 기존 작업과 통합 경로에 따른 구분이다.
@@ -49,7 +50,8 @@
 - requirements/requirements-db.txt, requirements-app.txt: 통합 과정에서 추가한 설치 목록.
 - docs/INTERFACE_GUIDE.md, DB_ADAPTER_GUIDE.md: 서비스 규격·연결 설명.
 - docs/history/: 과거 병합과 검증 기록. 당시 경로가 남아 있을 수 있다.
-- artifacts/checks/: 실제 모델 검색 결과 기록.
+- artifacts/checks/: 별도 실행 후 저장한 과거 수동 검증 기록.
+- reports/: GUI 분석 완료 후 자동 생성하는 로컬 보고서. Git에 올리지 않는다.
 - 개인용 learn.md는 내 포크에서만 관리하며 원본으로 전달하는 PR에는 제외한다.
 
 ## 폴더 정리 때 지키는 기준
@@ -60,3 +62,5 @@
 필요한 설치 안내 문자열과 문서 경로만 수정한다.
 변경은 내 포크에서 기록하고 원본의 내 작업 브랜치로 PR을 보내 검토·병합한다.
 원본의 main이나 팀원 브랜치에 직접 반영하지 않는다.
+
+자동 보고서 작성기는 Edmond1889 통합 영역에 추가한 기능이다. 팀원 로더·DB·인코더 구현은 수정하지 않았다. [보고서 안내](REPORTS_GUIDE.md)를 참고한다.
