@@ -130,6 +130,8 @@ python -m unittest discover -s tests -v
 
 ## 관련 문서
 
+- [처음 보는 팀원을 위한 프로젝트 안내](docs/PROJECT_FOR_BEGINNERS.md)
+
 - [함수 규격과 사용 위치](docs/INTERFACE_GUIDE.md)
 - [DB 어댑터 연결](docs/DB_ADAPTER_GUIDE.md)
 - [병합 점검과 후속 연결 기록](docs/history/MERGE_CHECK_2026-10-14.md)

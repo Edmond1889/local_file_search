@@ -2,6 +2,7 @@
 
 | 문서/폴더 | 내용 |
 |---|---|
+| [PROJECT_FOR_BEGINNERS.md](PROJECT_FOR_BEGINNERS.md) | 비유로 읽는 모든 폴더·규격·초기화 파일·테스트의 역할 |
 | [CODE_OWNERSHIP.md](CODE_OWNERSHIP.md) | 담당자, 최초 작성 기록, 이전 경로와 현재 위치 |
 | [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | 기능별 폴더 구조와 수정할 파일 찾기 |
 | [INTERFACE_GUIDE.md](INTERFACE_GUIDE.md) | 서비스 함수 규격과 호출 위치 |
