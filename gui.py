@@ -1,9 +1,11 @@
 """실제 사진 검색 GUI. --demo 옵션으로 가상 데이터 연결도 확인할 수 있다.
 
 작업 스레드 → Queue → 메인 스레드 순서로 화면을 갱신한다."""
+from datetime import datetime
 from pathlib import Path
 from queue import Empty, Queue
 from threading import Thread
+from time import perf_counter
 import tkinter as tk
 from tkinter import filedialog, ttk
 
@@ -13,6 +15,7 @@ from demo.demo_adapters import (
 )
 from services.analysis_service import AnalysisService
 from services.search_service import SearchService
+from services.report_writer import AnalysisReportWriter
 
 
 def build_demo_services():
@@ -26,7 +29,7 @@ def build_demo_services():
 
 
 class PhotoSearchApp:
-    def __init__(self, root, service_factory=None, demo=False):
+    def __init__(self, root, service_factory=None, demo=False, report_writer=None):
         # 1. 작업 상태를 보관하고, 창과 화면 부품을 만든다.
         # 실제 연결 시 동일한 저장소/인덱스를 공유하는 두 서비스를 만드는 함수를 전달한다.
         self.root = root
@@ -34,6 +37,7 @@ class PhotoSearchApp:
         from real_services import RealServiceFactory
         self.service_factory = service_factory or (build_demo_services if demo else RealServiceFactory())
         self.demo = demo
+        self.report_writer = report_writer if report_writer is not None else AnalysisReportWriter()
         self.events = Queue()  # 작업 스레드 → 메인 스레드로 메시지를 전달하는 통로
         self.busy = False  # 분석/검색 중인지 표시해 중복 실행을 막는다.
         self.search_service = None  # 분석 완료 후 같은 저장소를 쓰는 검색 서비스를 받는다.
@@ -70,6 +74,12 @@ class PhotoSearchApp:
         self.progress.pack(fill="x", pady=6)
         self.status = tk.StringVar(value="분석할 폴더를 선택해주세요.")
         ttk.Label(frame, textvariable=self.status).pack(anchor="w")
+        # 완료된 분석 보고서 경로는 검색할 때도 유지하며 복사할 수 있다.
+        self.report_status = tk.StringVar(value="분석 완료 후 reports/에 자동 저장됩니다.")
+        report_row = ttk.Frame(frame)
+        report_row.pack(fill="x", pady=(4, 0))
+        ttk.Label(report_row, text="분석 보고서").pack(side="left", padx=(0, 6))
+        ttk.Entry(report_row, textvariable=self.report_status, state="readonly").pack(side="left", fill="x", expand=True)
 
         # 검색 영역: 입력창에서 Enter를 누르거나 검색 버튼을 누르면 search()를 호출한다.
         search_row = ttk.Frame(frame)
@@ -121,6 +131,7 @@ class PhotoSearchApp:
             self.progress.configure(value=0)
             self.set_failures("")
             self.status.set("분석 시작을 눌러주세요.")
+            self.report_status.set("분석 완료 후 reports/에 자동 저장됩니다.")
 
     def clear_results(self):
         # 목록 데이터, 화면의 행, 미리보기를 함께 비워 이전 결과가 남지 않게 한다.
@@ -158,15 +169,27 @@ class PhotoSearchApp:
         self.set_failures("")
         self.progress.configure(value=0)
         self.status.set("사진 목록을 준비하는 중…" if self.demo else "모델과 사진 목록을 준비하는 중… 첫 실행은 모델 다운로드가 필요할 수 있습니다.")
+        self.report_status.set("분석 완료 후 보고서를 저장합니다.")
         self.set_busy(True)
 
         def work():
             # 작업 스레드에서 실행할 함수: 화면을 직접 바꾸지 않고 Queue에 알린다.
+            started_at = datetime.now().astimezone()
+            started_clock = perf_counter()
             try:
                 analysis, search = self.service_factory()
                 # 이 콜백은 진행 숫자를 큐에 전달한다. 화면 갱신은 poll_events()가 맡는다.
                 report = analysis.analyze(folder, on_progress=lambda done, total: self.events.put(("progress", (done, total))))
                 # lambda는 짧은 함수다. 콜백 호출 시 (처리 개수, 전체 개수)를 큐에 넣는다.
+                elapsed_seconds = perf_counter() - started_clock
+                # 보고서 저장 실패와 분석 실패를 분리한다. 검색 도구는 계속 전달한다.
+                try:
+                    path = self.report_writer.save(report, folder, started_at=started_at,
+                                                   elapsed_seconds=elapsed_seconds, demo=self.demo)
+                except Exception as save_error:
+                    self.events.put(("report_save_failed", str(save_error)))
+                else:
+                    self.events.put(("report_saved", str(path)))
                 self.events.put(("analyzed", (report, search)))  # 완료 보고서와 검색 도구 전달
             except Exception as error:
                 # GUI 경계에서는 처리 실패를 사용자에게 표시한다.
@@ -212,6 +235,10 @@ class PhotoSearchApp:
                     self.status.set(f"분석 완료 · 성공 {len(report.indexed_files)}개 · 읽기 실패 {len(report.failures)}개")
                     self.set_failures("\n".join(f"읽기 실패: {failure.file.name} — {failure.reason}" for failure in report.failures))
                     self.set_busy(False)
+                elif kind == "report_saved":
+                    self.report_status.set(payload)
+                elif kind == "report_save_failed":
+                    self.report_status.set(f"보고서 저장 실패 (분석 결과는 유지): {payload}")
                 elif kind == "searched":
                     # 검색 완료: 결과 객체를 보관하고 이름과 점수를 목록의 행으로 만든다.
                     self.results = payload
@@ -223,6 +250,8 @@ class PhotoSearchApp:
                 elif kind == "error":
                     # 작업 실패: 이유를 표시하고 작업 중 상태를 해제한다.
                     self.status.set(f"처리 실패: {payload}")
+                    if self.search_service is None:
+                        self.report_status.set("분석 미완료 · 보고서가 생성되지 않았습니다.")
                     self.set_busy(False)
         except Empty:
             pass  # 큐가 비면 이번 확인을 끝낸다. 오류 상황이 아니다.
