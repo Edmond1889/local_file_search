@@ -31,3 +31,5 @@ DB 연결만 준비할 때는 requirements/requirements-db.txt를 사용한다.
 
 작성 근거: [모델 목록 수정 5b08637](https://github.com/nohminju/local_file_search/commit/5b0863763f89dc659ae3c177369082f1289038f6),
 DB 목록 추가 f77320b, 앱 목록 추가 dadcd89. 마지막 두 커밋의 Git 작성자는 실습용 FinalExamUser로 남아 있으며 사용자 통합 작업 이력이다.
+
+GUI의 JSON 분석 보고서 저장은 Python 표준 라이브러리를 사용하므로 추가 설치 항목은 없다. [보고서 안내](../docs/REPORTS_GUIDE.md)를 참고한다.

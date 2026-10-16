@@ -26,7 +26,8 @@ image-search-demo-v2/
 │   ├── INTERFACE_GUIDE.md
 │   ├── DB_ADAPTER_GUIDE.md
 │   └── history/
-├── artifacts/checks/       # 실제 모델 검색 기록
+├── artifacts/checks/       # 기존 수동 검증 기록
+├── reports/                # 실행 시 생기는 자동 분석 보고서, Git 제외
 ├── tests/
 ├── README.md
 ├── requirements/          # 모델·DB·앱 설치 목록
@@ -133,3 +134,12 @@ __pycache__와 .pyc는 재생성되는 캐시이므로 올리지 않는다.
 requirements.txt, requirements-db.txt, requirements-app.txt는 requirements/로 이동했다.
 이 세 파일의 내용과 내부 -r 포함 관계는 유지했다. 설치 명령은 저장소 루트에서
 `python -m pip install -r requirements/requirements-app.txt`다.
+
+
+## 추가된 자동 분석 보고서
+
+GUI는 AnalysisService의 완료 결과를 services/report_writer.py에 전달해 reports/에 저장한다.
+소스 파일은 services에 있고 JSON 출력은 reports에 생긴다. SQLite·FAISS 저장 정책은 바꾸지 않는다.
+새 테스트 파일은 tests/test_report_writer.py다. 보고서가 없으면 미리 만들어둔 예제가 아니라
+실제 분석 완료 여부와 GUI 저장 오류 표시를 확인한다.
+세부 항목은 [분석 보고서 안내](REPORTS_GUIDE.md)를 참고한다.

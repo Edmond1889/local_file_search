@@ -70,3 +70,13 @@ KoreanTextEncoder는 encode_text()를 제공하지만 SearchService는 encode()�
 
 
 2026-10-16 폴더 정리: 파일별 현재 위치는 [구조 안내](PROJECT_STRUCTURE.md)를 참고한다.
+
+
+## GUI 분석 완료 뒤의 JSON 저장
+
+AnalysisService.analyze()는 기존처럼 AnalysisReport를 반환한다.
+GUI 작업 스레드가 이 결과를 AnalysisReportWriter.save()에 넘기며 저장 성공·실패를 Queue에 넣는다.
+메인 스레드는 보고서 경로나 저장 실패 이유를 표시한다. 저장 오류는 분석 오류와 분리하므로
+완료한 분석 결과와 검색 서비스를 계속 사용할 수 있다.
+서비스 직접 호출과 app.py 콘솔 데모는 자동 파일 저장 대상이 아니다.
+시각·개수·파일 목록의 형식은 [분석 보고서 안내](REPORTS_GUIDE.md)를 참고한다.

@@ -55,3 +55,11 @@ C:/Capstone/waste/
 먼저 예전 편집기·터미널의 작업 경로를 닫고 Git 연결을 확인한다.
 project에는 미커밋 변경과 연결된 Git 작업 사본이 있으므로 파일 몇 개만 빼기보다 이력을 보존해 판단한다.
 demo-v1은 완료한 1차 데모의 로컬 사본이므로 이번 후보 목록과 구분해 유지한다.
+
+
+## 자동 보고서 추가 후에도 유지하는 구분
+
+services/report_writer.py는 현재 GUI가 실제로 호출하는 코드이며 구파일 보관 대상이 아니다.
+gui.py --demo의 보고서는 mode=demo와 analysis_demo 파일명으로 가상 데이터임을 표시한다.
+app.py 콘솔 데모에는 자동 저장을 연결하지 않았다. tests/test_report_writer.py는 임시 폴더로 검사한다.
+reports/에는 실제 실행으로 생성된 결과만 두고, 기존 artifacts/checks의 수동 기록과 구별한다.
