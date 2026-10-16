@@ -224,7 +224,7 @@ cd C:\Capstone\image-search-demo-v2
 & 'C:\Users\이수아\AppData\Local\Python\pythoncore-3.14-64\python.exe' gui.py
 ```
 
-라이브러리 오류가 있으면 같은 Python으로 `-m pip install -r requirements-app.txt`를 실행한다. 회의 직전에는 설치 환경을 불필요하게 바꾸지 않고 기존 환경에서 먼저 확인한다. 첫 모델 다운로드에는 인터넷과 시간이 필요할 수 있다.
+라이브러리 오류가 있으면 같은 Python으로 `-m pip install -r requirements/requirements-app.txt`를 실행한다. 회의 직전에는 설치 환경을 불필요하게 바꾸지 않고 기존 환경에서 먼저 확인한다. 첫 모델 다운로드에는 인터넷과 시간이 필요할 수 있다.
 
 기존 기록 `artifacts/checks/CAT_SEARCH_CHECK_2026-10-14.json`에는 샘플 3장 분석 성공, '하품하는 고양이'의 Test2.jpg 1위, '고양이 얼굴 클로즈업'의 Test3.jpg 1위가 남아 있다. 이는 이전 실행 기록이다. 이번 문서 작성 중 실제 모델이나 GUI를 새로 실행한 결과는 아니다.
 README에는 자동 테스트 25개 통과 기록이 있다. 이번 작업에서 테스트를 다시 실행한 것은 아니다.
@@ -256,12 +256,12 @@ origin은 내 포크, upstream은 팀 원본이다. 일반 개발과 개인 메�
 기존 1차 데모 폴더에 있는 learn.md의 로컬 제외 설정은 그대로 보존한다.
 
 원본으로 후속 변경을 전달할 때는 개인 노트 커밋을 포함한 v2 전체를 합치지 않는다.
-메모 없는 공유 브랜치에서 코드 변경만 커밋하거나 코드 전용 커밋을 cherry-pick한다.
+내 포크의 메모 없는 공유 브랜치에 코드·공유 문서 변경만 담고, 원본의 내 브랜치로 PR을 보낸다. 원본 작업 브랜치에는 직접 푸시하지 않는다.
 노트를 파일 목록에서 지우는 것만으로 과거 커밋에서 사라지는 것은 아니다.
 
 C:/Capstone/project는 통합 전 개인 작업(demo-v0),
-C:/Capstone/image-search-demo는 기존 1차 데모(demo-v1)로 구분하고 기존 파일은 유지했다.
-실제 폴더 이름 변경은 채팅·편집기·Git 작업 경로 연결까지 확인해서 진행한다.
+C:/Capstone/demo-v1은 기존 1차 데모 폴더이며 이름 변경이 완료됐다.
+project → demo-v0 이름 변경은 Windows에서 폴더 사용 중 잠금이 있어 아직 완료되지 않았다.
 새 개발은 v2 폴더에서 한다. 기존 두 폴더를 수동으로 동기화하지 않는다.
 
 ## 9. 스스로 설명해 보기
@@ -272,3 +272,17 @@ C:/Capstone/image-search-demo는 기존 1차 데모(demo-v1)로 구분하고 기
 - 이름이 같은 FileInfo 두 개 사이에 왜 어댑터가 필요한가?
 - save_index 함수가 있는데도 왜 재실행하면 재분석해야 하는가?
 - 창이 뜬 상태와 실제 검색 검증 완료는 어떻게 구분하는가?
+
+
+## 10. 담당자와 옛 데모 코드 찾기
+
+- [담당자·이전 경로·현재 경로](./docs/CODE_OWNERSHIP.md)
+- [옛 데모와 보관 후보](./docs/DEMO_CODE_INVENTORY.md)
+- [설치 목록 세 파일의 역할](./requirements/README.md)
+
+현재 app.py와 demo/demo_adapters.py도 데모·테스트에서 사용하므로 waste로 옮기지 않았다.
+통합 전 project 사본과 another/ver1, another/test_proto는 현재 v2에서 참조하지 않는 옛 구현이다.
+코드를 실행하지 않는 구버전 기록인지 확인한 뒤 폴더 단위로 보관할 수 있다.
+이번에는 이 목록만 작성했고 waste 이동은 하지 않았다.
+
+검증 기록(2026-10-16): 이번 의존성 정리 후 테스트 25개가 통과했고 pip --dry-run --no-index --no-deps로 세 파일의 포함 경로를 확인했다. 실제 모델 추론을 다시 실행한 것은 아니다.
