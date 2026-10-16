@@ -1,5 +1,5 @@
 """고정된 가짜 데이터로 서비스 연결 흐름만 확인하는 실행 예제."""
-from demo_adapters import (
+from demo.demo_adapters import (
     DemoImageEncoder, DemoImageLoader, DemoRepository,
     DemoScanner, DemoTextEncoder, DemoVectorIndex,
 )

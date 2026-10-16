@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 
-from db_manager import FileInfo as DatabaseFileInfo
-from db_manager import Repository as DatabaseRepository
+from storage.db_manager import FileInfo as DatabaseFileInfo
+from storage.db_manager import Repository as DatabaseRepository
 from models.file_info import FileInfo, metadata_created_at
 
 

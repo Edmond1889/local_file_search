@@ -36,7 +36,7 @@
 
 ~~~python
 from adapters.repository_adapter import RepositoryAdapter
-from db_manager import Repository as DatabaseRepository
+from storage.db_manager import Repository as DatabaseRepository
 
 database = DatabaseRepository("image_metadata.db")
 repository = RepositoryAdapter(database)
@@ -49,8 +49,8 @@ repository = RepositoryAdapter(database)
 
 ## 검증
 
-requirements-db.txt는 requirements.txt를 포함하므로 모델 라이브러리도 설치 대상이다.
-Pillow·NumPy·FAISS가 설치된 환경에서 아래 명령으로 테스트 25개가 모두 통과했다.
+requirements/requirements-db.txt는 requirements/requirements.txt를 포함하므로 모델 라이브러리도 설치 대상이다.
+Pillow·NumPy·FAISS가 설치된 환경에서 아래 명령으로 테스트 25개가 모두 통과했다(당시 기록). 현재 자동 보고서 검사를 포함한 전체 테스트는 36개다.
 
 ~~~powershell
 python -m unittest discover -s tests -v
@@ -63,4 +63,12 @@ python -m unittest discover -s tests -v
 ## 남은 협업
 
 기존 DB 이전, 재분석/중복 갱신, 일부 저장 실패 복구, 변경 파일의 해시 재계산 위치를 정해야 한다.
-문장 인코더 함수명과 실제 GUI 연결은 완료했고 requirements-app.txt에 실행 의존성을 모았다. 실제 모델로 샘플 3장의 분석·검색을 확인했으며, 다양한 사진에서의 품질과 실제 GUI 검색 확인은 남아 있다.
+문장 인코더 함수명과 실제 GUI 연결은 완료했고 requirements/requirements-app.txt에 실행 의존성을 모았다. 실제 모델로 샘플 3장의 분석·검색을 확인했으며, 다양한 사진에서의 품질과 실제 GUI 검색 확인은 남아 있다.
+
+
+## JSON 분석 보고서와 DB의 관계
+
+GUI 분석 완료 후 생성되는 reports/의 JSON에는 성공·실패와 파일 메타데이터를 기록한다.
+이것은 SQLite DB 파일이나 FAISS 인덱스 백업이 아니다. 분석 세션 DB는 여전히 임시 저장이며
+JSON을 읽어서 재실행 후 검색을 복원하는 기능은 없다. 보고서 저장 실패만으로 성공한 분석을 취소하지 않는다.
+필드 설명은 [분석 보고서 안내](REPORTS_GUIDE.md)를 참고한다.
