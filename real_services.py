@@ -19,8 +19,8 @@ class RealServiceFactory:
     def _load_encoders():
         # 무거운 라이브러리는 분석을 누른 작업 스레드에서 불러온다.
         try:
-            from CapStone.embedding.image_encoder import ImageEncoder
-            from text_encoder import KoreanTextEncoder
+            from encoders.image_encoder import ImageEncoder
+            from encoders.text_encoder import KoreanTextEncoder
         except ImportError as error:
             raise RuntimeError(
                 "모델 라이브러리를 불러올 수 없습니다. 현재 Python에서 "
@@ -35,8 +35,8 @@ class RealServiceFactory:
     def __call__(self):
         from adapters.encoder_adapters import ImageEncoderAdapter, TextEncoderAdapter
         from adapters.repository_adapter import RepositoryAdapter
-        from db_manager import Repository, VectorIndex
-        from image_loader import DefaultFileScanner, DefaultImageLoader
+        from storage.db_manager import Repository, VectorIndex
+        from imaging.image_loader import DefaultFileScanner, DefaultImageLoader
 
         if self.encoders is None:
             self.encoders = self.encoder_factory()

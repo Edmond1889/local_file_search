@@ -7,7 +7,7 @@ from threading import Thread
 import tkinter as tk
 from tkinter import filedialog, ttk
 
-from demo_adapters import (
+from demo.demo_adapters import (
     DemoImageEncoder, DemoImageLoader, DemoRepository,
     DemoScanner, DemoTextEncoder, DemoVectorIndex,
 )

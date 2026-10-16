@@ -36,7 +36,7 @@
 
 ~~~python
 from adapters.repository_adapter import RepositoryAdapter
-from db_manager import Repository as DatabaseRepository
+from storage.db_manager import Repository as DatabaseRepository
 
 database = DatabaseRepository("image_metadata.db")
 repository = RepositoryAdapter(database)

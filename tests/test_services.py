@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
-from demo_adapters import (
+from demo.demo_adapters import (
     DemoImageEncoder, DemoImageLoader, DemoRepository,
     DemoScanner, DemoTextEncoder, DemoVectorIndex,
 )

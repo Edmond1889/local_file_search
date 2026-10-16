@@ -42,7 +42,7 @@ python gui.py
 터미널에 Python만 출력되거나 창이 열리지 않으면, 이 PC에서는 아래 전체 경로를 사용한다.
 
 ~~~powershell
-cd C:\Capstone\image-search-demo
+cd C:\Capstone\image-search-demo-v2
 & 'C:\Users\이수아\AppData\Local\Python\pythoncore-3.14-64\python.exe' -m pip install -r requirements-app.txt
 & 'C:\Users\이수아\AppData\Local\Python\pythoncore-3.14-64\python.exe' gui.py
 ~~~
@@ -119,7 +119,7 @@ python -m unittest discover -s tests -v
 
 테스트 25개 통과. 실제 임시 사진·손상 사진·스캐너·로더·SQLite·FAISS를 사용해 분석부터 검색까지 검증했다. 별도 작업 스레드 간 조회, 재분석, 검색 결과에 따른 파일 정보 복원도 확인했다.
 
-위 자동 테스트에서는 AI 인코더를 테스트용 벡터 생성기로 대체했다. 별도로 실제 모델을 사용해 CapStone/IMG의 고양이 사진 3장을 분석했고 읽기 실패는 0건이었다. ‘하품하는 고양이’는 Test2.jpg, ‘고양이 얼굴 클로즈업’은 Test3.jpg가 1위였다. 전체 결과는 [실제 모델 검색 기록](./CAT_SEARCH_CHECK_2026-10-14.json)에 저장했다. 사진 3장으로 한 제한된 확인이며 일반적인 검색 정확도와 사용자 화면에서의 최종 검색 동작은 별도 검증이 필요하다.
+위 자동 테스트에서는 AI 인코더를 테스트용 벡터 생성기로 대체했다. 별도로 실제 모델을 사용해 assets/images의 고양이 사진 3장을 분석했고 읽기 실패는 0건이었다. ‘하품하는 고양이’는 Test2.jpg, ‘고양이 얼굴 클로즈업’은 Test3.jpg가 1위였다. 전체 결과는 [실제 모델 검색 기록](artifacts/checks/CAT_SEARCH_CHECK_2026-10-14.json)에 저장했다. 사진 3장으로 한 제한된 확인이며 일반적인 검색 정확도와 사용자 화면에서의 최종 검색 동작은 별도 검증이 필요하다.
 
 ## 남은 협업
 
@@ -130,6 +130,32 @@ python -m unittest discover -s tests -v
 
 ## 관련 문서
 
-- [함수 규격과 사용 위치](./INTERFACE_GUIDE.md)
-- [DB 어댑터 연결](./DB_ADAPTER_GUIDE.md)
-- [병합 점검과 후속 연결 기록](./MERGE_CHECK_2026-10-14.md)
+- [함수 규격과 사용 위치](docs/INTERFACE_GUIDE.md)
+- [DB 어댑터 연결](docs/DB_ADAPTER_GUIDE.md)
+- [병합 점검과 후속 연결 기록](docs/history/MERGE_CHECK_2026-10-14.md)
+
+
+## 폴더 구조 — 2026-10-16
+
+1차 데모를 보존하고 v2 작업 폴더에서 기능별로 파일을 정리했다. 내 포크의 브랜치는 `codex/image-search-demo-v2`, 원본 공유 브랜치는 `edmond1889-service-gui-patch-1`이다.
+`python gui.py`, `python gui.py --demo`, `python app.py` 실행 방법은 동일하다.
+샘플 폴더는 `assets/images`로 이동했다.
+
+| 폴더 | 역할 |
+|---|---|
+| imaging/ | 사진 탐색과 읽기 |
+| encoders/ | 이미지·문장 임베딩 |
+| storage/ | SQLite 메타데이터와 FAISS 인덱스 |
+| adapters/ | 팀원 구현과 공통 규격 사이의 변환 |
+| services/ | 분석·검색 흐름 |
+| models/ | 공통 데이터 구조 |
+| demo/ | 모델 없이 실행하는 가상 데이터 구현 |
+| assets/images/ | 시연용 샘플 사진 |
+| docs/ | 함수 규격·DB 연결·구조 설명 |
+| docs/history/ | 과거 병합·검증 기록 |
+| artifacts/checks/ | 실제 검색 결과 기록 |
+| tests/ | 자동 검증 |
+
+기존 경로 대응과 수정할 파일 선택 기준은 [프로젝트 구조 안내](docs/PROJECT_STRUCTURE.md)를 참고한다.
+
+새 작업 폴더는 `C:/Capstone/image-search-demo-v2`다. origin은 내 포크, upstream은 팀 원본이다. 개인 학습 노트는 내 포크에만 보관한다.

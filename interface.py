@@ -1,6 +1,6 @@
 """팀원들과 합의할 연결 규격 초안. 각 기능은 담당자가 구현한다.
 
-사용 위치로 이동하는 링크와 흐름 설명은 INTERFACE_GUIDE.md를 참고한다.
+사용 위치로 이동하는 링크와 흐름 설명은 docs/INTERFACE_GUIDE.md를 참고한다.
 """
 from typing import Any, Protocol, Sequence
 from models.file_info import FileInfo

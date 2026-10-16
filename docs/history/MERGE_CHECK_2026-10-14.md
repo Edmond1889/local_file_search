@@ -1,5 +1,7 @@
 # 2026-10-14 최신 병합 점검
 
+> 이 문서는 당시 기록이므로 본문의 코드 경로는 이전 구조다. 현재 위치는 [프로젝트 구조 안내](../PROJECT_STRUCTURE.md)를 참고한다.
+
 ## 결론
 
 GitHub demo 브랜치의 efca3c9를 C:/Capstone/image-search-demo에 fast-forward로 반영했다.

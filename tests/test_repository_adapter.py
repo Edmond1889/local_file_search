@@ -15,8 +15,8 @@ HAS_DATABASE_DEPS = all(importlib.util.find_spec(name) is not None for name in (
 if HAS_DATABASE_DEPS:
     import numpy as np
     from adapters.repository_adapter import RepositoryAdapter
-    from db_manager import Repository as DatabaseRepository, VectorIndex
-    from image_loader import DefaultImageLoader
+    from storage.db_manager import Repository as DatabaseRepository, VectorIndex
+    from imaging.image_loader import DefaultImageLoader
     from PIL import Image
     from services.analysis_service import AnalysisService
     from services.search_service import SearchService
