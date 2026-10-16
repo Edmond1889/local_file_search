@@ -15,7 +15,7 @@
 VS Code에서 사용할 Python 인터프리터를 선택한 뒤 새 터미널에서 실행한다. Tkinter가 포함된 Python이 필요하다.
 
 ~~~powershell
-python -m pip install -r requirements-app.txt
+python -m pip install -r requirements/requirements-app.txt
 python gui.py
 ~~~
 
@@ -29,7 +29,7 @@ python gui.py
 설치한 라이브러리는 위 명령을 실행한 Python 환경에 있어야 한다. Windows에서 python 명령이 Python만 출력한다면 실행 별칭 대신 실제 실행 파일 경로를 사용한다.
 
 ~~~powershell
-& '실제 Python 실행 파일 경로' -m pip install -r requirements-app.txt
+& '실제 Python 실행 파일 경로' -m pip install -r requirements/requirements-app.txt
 & '실제 Python 실행 파일 경로' gui.py
 ~~~
 
@@ -43,7 +43,7 @@ python gui.py
 
 ~~~powershell
 cd C:\Capstone\image-search-demo-v2
-& 'C:\Users\이수아\AppData\Local\Python\pythoncore-3.14-64\python.exe' -m pip install -r requirements-app.txt
+& 'C:\Users\이수아\AppData\Local\Python\pythoncore-3.14-64\python.exe' -m pip install -r requirements/requirements-app.txt
 & 'C:\Users\이수아\AppData\Local\Python\pythoncore-3.14-64\python.exe' gui.py
 ~~~
 
@@ -107,9 +107,9 @@ updated_at은 사진 파일의 수정 시각이다. created_at은 파일 정보 
 
 ## 의존성 목록
 
-- requirements.txt: 팀원 모델 의존성 목록.
-- requirements-db.txt: 위 목록에 NumPy·FAISS 추가.
-- requirements-app.txt: 위 목록에 Pillow·다국어 모델용 transformers·sentencepiece 추가. 실제 GUI 실행 시 사용한다.
+- requirements/requirements.txt: 팀원 모델 의존성 목록.
+- requirements/requirements-db.txt: 위 목록에 NumPy·FAISS 추가.
+- requirements/requirements-app.txt: 위 목록에 Pillow·다국어 모델용 transformers·sentencepiece 추가. 실제 GUI 실행 시 사용한다.
 
 ## 검증
 
@@ -155,7 +155,19 @@ python -m unittest discover -s tests -v
 | docs/history/ | 과거 병합·검증 기록 |
 | artifacts/checks/ | 실제 검색 결과 기록 |
 | tests/ | 자동 검증 |
+| requirements/ | pip 설치용 라이브러리 목록 |
 
 기존 경로 대응과 수정할 파일 선택 기준은 [프로젝트 구조 안내](docs/PROJECT_STRUCTURE.md)를 참고한다.
 
 새 작업 폴더는 `C:/Capstone/image-search-demo-v2`다. origin은 내 포크, upstream은 팀 원본이다. 개인 학습 노트는 내 포크에만 보관한다.
+
+
+## 담당자와 구버전 확인
+
+- [작성자·담당 기능·이전 경로](docs/CODE_OWNERSHIP.md)
+- [현재도 쓰는 데모와 옛 코드 보관 후보](docs/DEMO_CODE_INVENTORY.md)
+- [문서 목록](docs/README.md)
+- [설치 목록 세 파일의 차이](requirements/README.md)
+
+이번 추가 정리에서는 Python 구현 파일을 더 이동하지 않았다. 설치용 TXT 세 파일만
+requirements/로 모으고 명령·안내 문자열을 수정했다. 원본 반영은 개인 메모 없는 PR로 제안한다.

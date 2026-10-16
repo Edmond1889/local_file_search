@@ -49,7 +49,7 @@ repository = RepositoryAdapter(database)
 
 ## 검증
 
-requirements-db.txt는 requirements.txt를 포함하므로 모델 라이브러리도 설치 대상이다.
+requirements/requirements-db.txt는 requirements/requirements.txt를 포함하므로 모델 라이브러리도 설치 대상이다.
 Pillow·NumPy·FAISS가 설치된 환경에서 아래 명령으로 테스트 25개가 모두 통과했다.
 
 ~~~powershell
@@ -63,4 +63,4 @@ python -m unittest discover -s tests -v
 ## 남은 협업
 
 기존 DB 이전, 재분석/중복 갱신, 일부 저장 실패 복구, 변경 파일의 해시 재계산 위치를 정해야 한다.
-문장 인코더 함수명과 실제 GUI 연결은 완료했고 requirements-app.txt에 실행 의존성을 모았다. 실제 모델로 샘플 3장의 분석·검색을 확인했으며, 다양한 사진에서의 품질과 실제 GUI 검색 확인은 남아 있다.
+문장 인코더 함수명과 실제 GUI 연결은 완료했고 requirements/requirements-app.txt에 실행 의존성을 모았다. 실제 모델로 샘플 3장의 분석·검색을 확인했으며, 다양한 사진에서의 품질과 실제 GUI 검색 확인은 남아 있다.

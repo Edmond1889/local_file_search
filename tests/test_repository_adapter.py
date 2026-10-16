@@ -22,7 +22,7 @@ if HAS_DATABASE_DEPS:
     from services.search_service import SearchService
 
 
-@unittest.skipUnless(HAS_DATABASE_DEPS, "Install requirements-db.txt to run actual DB integration tests")
+@unittest.skipUnless(HAS_DATABASE_DEPS, "Install requirements/requirements-db.txt to run actual DB integration tests")
 class RepositoryAdapterTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
