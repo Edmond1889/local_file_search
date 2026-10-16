@@ -29,7 +29,7 @@ image-search-demo-v2/
 ├── artifacts/checks/       # 실제 모델 검색 기록
 ├── tests/
 ├── README.md
-├── requirements*.txt
+├── requirements/          # 모델·DB·앱 설치 목록
 └── learn.md                # 내 포크에만 보관, 원본 브랜치에는 없음
 ```
 
@@ -65,6 +65,9 @@ image-search-demo-v2/
 | DB_ADAPTER_GUIDE.md | docs/DB_ADAPTER_GUIDE.md |
 | MERGE_CHECK_2026-10-14.md | docs/history/MERGE_CHECK_2026-10-14.md |
 | CAT_SEARCH_CHECK_2026-10-14.json | artifacts/checks/CAT_SEARCH_CHECK_2026-10-14.json |
+| requirements.txt | requirements/requirements.txt |
+| requirements-db.txt | requirements/requirements-db.txt |
+| requirements-app.txt | requirements/requirements-app.txt |
 
 예: DB를 불러올 때 `from storage.db_manager import Repository`를 사용한다.
 사진·모델 파일을 복제하지 않고 이동했으며 기존 CapStone 이름의 중첩을 없앴다.
@@ -98,7 +101,7 @@ GUI에서 사용할 샘플 폴더는 `C:\Capstone\image-search-demo-v2\assets\im
 ## Git과 다른 작업 폴더
 
 - C:/Capstone/project: 통합 전 개인 코드. demo-v0라는 용도로 구분하며 실제 이름은 아직 유지한다.
-- C:/Capstone/image-search-demo: 1차 데모와 정리 작업 원본. demo-v1이라는 용도로 구분하며 기존 파일은 보존했다.
+- C:/Capstone/demo-v1: 기존 image-search-demo에서 이름 변경한 1차 데모·정리 작업 사본.
 - C:/Capstone/image-search-demo-v2: 앞으로 실제로 개발하는 새 폴더.
 - origin: 내 GitHub Edmond1889/local_file_search.
 - upstream: 팀 원본 nohminju/local_file_search.
@@ -110,7 +113,7 @@ GUI에서 사용할 샘플 폴더는 `C:\Capstone\image-search-demo-v2\assets\im
 그 위에 개인 노트 커밋을 더해 내 포크 v2에만 올리는 방식으로 분리했다.
 개인 메모를 삭제한 결과만 푸시해도 이전 커밋에 메모가 남을 수 있으므로,
 원본에는 개인 노트 커밋이 포함된 v2 전체 이력을 병합하지 않는다.
-후속 공유 작업은 메모 없는 공유 브랜치에 코드 변경만 반영한다.
+후속 공유 작업은 내 포크의 메모 없는 공유 브랜치에서 원본의 내 브랜치로 PR을 보낸다. 원본에는 직접 푸시하지 않는다.
 
 기존 폴더를 계속 동기화하지 말고 새 v2 폴더에서 작업한다.
 채팅이나 편집기가 옛 project 경로에 연결돼 있다면 새 v2 폴더를 열어 작업 경로를 맞춘다.
@@ -119,3 +122,14 @@ GUI에서 사용할 샘플 폴더는 `C:\Capstone\image-search-demo-v2\assets\im
 
 __pycache__와 .pyc는 재생성되는 캐시이므로 올리지 않는다.
 공유 문서는 docs/에, 개인 학습 내용은 내 포크의 learn.md에 둔다.
+
+
+## 담당자·설치 파일·구버전 구분
+
+- [코드 담당자와 출처](CODE_OWNERSHIP.md): Git 기록으로 확인한 작성자, 이전 위치, 현재 위치.
+- [데모 코드와 보관 후보](DEMO_CODE_INVENTORY.md): 옛 사본과 현재도 필요한 데모 코드의 구분.
+- [설치 파일 안내](../requirements/README.md): 세 TXT의 역할과 설치 명령.
+
+requirements.txt, requirements-db.txt, requirements-app.txt는 requirements/로 이동했다.
+이 세 파일의 내용과 내부 -r 포함 관계는 유지했다. 설치 명령은 저장소 루트에서
+`python -m pip install -r requirements/requirements-app.txt`다.

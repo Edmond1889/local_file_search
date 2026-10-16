@@ -24,7 +24,7 @@ class RealServiceFactory:
         except ImportError as error:
             raise RuntimeError(
                 "모델 라이브러리를 불러올 수 없습니다. 현재 Python에서 "
-                "python -m pip install -r requirements-app.txt 실행 후 다시 시도해주세요. "
+                "python -m pip install -r requirements/requirements-app.txt 실행 후 다시 시도해주세요. "
                 f"원인: {error}"
             ) from error
         # 사진과 문장은 반드시 같은 모델 이름과 학습 가중치를 사용한다.
