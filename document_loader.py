@@ -1,13 +1,9 @@
 import os
-import zlib
-import zipfile
 import urllib.parse
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Generator, List
 from pypdf import PdfReader
 from pptx import Presentation
-import olefile
 
 
 @dataclass
@@ -20,7 +16,7 @@ class DocumentChunk:
 
 
 class DocumentScanner:
-    SUPPORTED_EXTENSIONS = {'.pdf', '.pptx', '.hwp', '.hwpx'}
+    SUPPORTED_EXTENSIONS = {'.pdf', '.pptx'}
 
     def __init__(self, root_dir: str):
         self.root_dir = root_dir
@@ -101,71 +97,6 @@ class DocumentLoader:
 
         return chunks
 
-    def load_hwpx(self, file_path: str) -> List[DocumentChunk]:
-        chunks: List[DocumentChunk] = []
-        file_name = self._get_clean_filename(file_path)
-
-        try:
-            with zipfile.ZipFile(file_path, 'r') as z:
-                section_files = [f for f in z.namelist() if f.startswith('Contents/section') and f.endswith('.xml')]
-                section_files.sort()
-
-                for page_idx, s_file in enumerate(section_files, start=1):
-                    xml_data = z.read(s_file)
-                    root = ET.fromstring(xml_data)
-                    texts = [elem.text.strip() for elem in root.iter() if elem.text and elem.text.strip()]
-                    combined = "\n".join(texts)
-
-                    if combined:
-                        chunks.append(DocumentChunk(
-                            file_name=file_name,
-                            file_path=file_path,
-                            page_number=page_idx,
-                            text=combined,
-                            chunk_type="hwpx"
-                        ))
-        except Exception:
-            return []
-
-        return chunks
-
-    def load_hwp(self, file_path: str) -> List[DocumentChunk]:
-        chunks: List[DocumentChunk] = []
-        file_name = self._get_clean_filename(file_path)
-
-        try:
-            if not olefile.isOleFile(file_path):
-                return []
-
-            with olefile.OleFileIO(file_path) as ole:
-                dirs = ole.listdir()
-                section_dirs = [d for d in dirs if len(d) > 1 and d[0] == 'BodyText' and d[1].startswith('Section')]
-                section_dirs.sort(key=lambda x: int(x[1].replace('Section', '')) if x[1].replace('Section', '').isdigit() else 0)
-
-                for page_idx, sec in enumerate(section_dirs, start=1):
-                    stream = ole.openstream(sec).read()
-                    try:
-                        decompressed = zlib.decompress(stream, -15)
-                    except Exception:
-                        decompressed = stream
-
-                    text = decompressed.decode('utf-16le', errors='ignore')
-                    clean_lines = [line.strip() for line in text.splitlines() if line.strip()]
-                    combined = "\n".join(clean_lines)
-
-                    if combined:
-                        chunks.append(DocumentChunk(
-                            file_name=file_name,
-                            file_path=file_path,
-                            page_number=page_idx,
-                            text=combined,
-                            chunk_type="hwp"
-                        ))
-        except Exception:
-            return []
-
-        return chunks
-
     def process_file(self, file_path: str) -> List[DocumentChunk]:
         if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
             return []
@@ -175,10 +106,6 @@ class DocumentLoader:
             return self.load_pdf(file_path)
         elif ext == '.pptx':
             return self.load_pptx(file_path)
-        elif ext == '.hwpx':
-            return self.load_hwpx(file_path)
-        elif ext == '.hwp':
-            return self.load_hwp(file_path)
         return []
 
 
