@@ -1,0 +1,7 @@
+# 기존 팀원 텍스트 인코더와 SQLite·FAISS 연결에 필요한 라이브러리
+torch>=2.0.0
+open_clip_torch>=2.20.0
+numpy>=1.25,<3
+faiss-cpu==1.15.1
+transformers>=4.30,<5
+sentencepiece>=0.1.99
