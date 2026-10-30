@@ -95,3 +95,27 @@ class ImageEncoder:
             return np.concatenate(vectors, axis=0)
 
         return np.empty((0, 512), dtype=np.float32)
+        
+    def encode_with_crops(self, image):
+        """전체 이미지와 4개 영역을 각각 임베딩"""
+        if not isinstance(image, Image.Image):
+            raise TypeError("PIL 이미지 객체를 전달해야 합니다.")
+
+        width, height = image.size
+
+        if width < 2 or height < 2:
+            return self.encode_batch([image])
+
+        mid_x = width // 2
+        mid_y = height // 2
+
+        images = [
+            image,  # 전체 이미지
+            image.crop((0, 0, mid_x, mid_y)),        # 왼쪽 위
+            image.crop((mid_x, 0, width, mid_y)),     # 오른쪽 위
+            image.crop((0, mid_y, mid_x, height)),    # 왼쪽 아래
+            image.crop((mid_x, mid_y, width, height)) # 오른쪽 아래
+        ]
+
+        return self.encode_batch(images)
+
