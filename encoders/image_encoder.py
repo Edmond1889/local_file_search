@@ -96,7 +96,7 @@ class ImageEncoder:
 
         return np.empty((0, 512), dtype=np.float32)
         
-    def encode_with_crops(self, image):
+    def encode_with_crops(self, image): ##테스트 필요
         """전체 이미지와 4개 영역을 각각 임베딩"""
         if not isinstance(image, Image.Image):
             raise TypeError("PIL 이미지 객체를 전달해야 합니다.")
