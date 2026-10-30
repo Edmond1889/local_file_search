@@ -1,17 +1,14 @@
-# 공유 문서 안내
+# 현재 문서
 
-| 문서/폴더 | 내용 |
+이전 `image-search-demo-v2/docs`를 현재 코드 기준으로 줄여 정리했다.
+
+| 궁금한 내용 | 문서 |
 |---|---|
-| [REPORTS_GUIDE.md](REPORTS_GUIDE.md) | GUI 분석 보고서 자동 저장 위치·내용·실패 처리 |
-| [PROJECT_FOR_BEGINNERS.md](PROJECT_FOR_BEGINNERS.md) | 비유로 읽는 모든 폴더·규격·초기화 파일·테스트의 역할 |
-| [CODE_OWNERSHIP.md](CODE_OWNERSHIP.md) | 담당자, 최초 작성 기록, 이전 경로와 현재 위치 |
-| [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | 기능별 폴더 구조와 수정할 파일 찾기 |
-| [INTERFACE_GUIDE.md](INTERFACE_GUIDE.md) | 서비스 함수 규격과 호출 위치 |
-| [DB_ADAPTER_GUIDE.md](DB_ADAPTER_GUIDE.md) | 파일 정보 필드와 DB 변환 |
-| [DEMO_CODE_INVENTORY.md](DEMO_CODE_INVENTORY.md) | 옛 데모·초안과 현재도 쓰는 코드 구분 |
-| history/ | 과거 병합·검증 기록 |
+| 폴더 역할과 구현 상태 | [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) |
+| 함수의 입력·출력과 연결 순서 | [INTERFACE_GUIDE.md](INTERFACE_GUIDE.md) |
+| DB 필드와 이전 유사도 계산 위치 | [DB_GUIDE.md](DB_GUIDE.md) |
+| 코드 출처와 커밋 범위 | [CODE_OWNERSHIP.md](CODE_OWNERSHIP.md) |
 
-pip 설치 목록은 설명 문서와 구분해 [requirements/](../requirements/README.md)에 모았다.
-개인 학습 노트는 내 포크에만 두고, 이 폴더에는 공유 가능한 기능·협업 설명을 둔다.
-
-자동 생성 JSON은 docs가 아니라 프로젝트 루트 reports/에 저장한다. 기존 artifacts/checks JSON은 별도 수동 검증 기록이다.
+이전 `PROJECT_FOR_BEGINNERS.md`와 `learn.md`는 [공부 노트](../study/learn.md)로 합쳤다.
+`DB_ADAPTER_GUIDE.md`는 DB_GUIDE로 정리했다. 현재 없는 자동 보고서·데모 설명은 구조 문서에 상태만 남겼다.
+과거 병합·검증 기록의 원본은 이전 프로젝트에 보존했다. 현재 기능 설명으로 복사하지 않는다.

@@ -1,20 +1,17 @@
-# 텍스트 파일 검색 프로젝트
+# 텍스트 검색 연결 작업본
 
-기준: **2026-10-29** · 브랜치: `file-serch-demo-v1`
+코드·문서를 검색하도록 전환하는 중이다. **파일 인코더와 유사도 비교는 미구현**이다.
 
-이미지 검색에서 코드·문서의 텍스트 검색으로 전환 중이다.
-
-- 현재 작업 위치: [text-search-demo-v1/](text-search-demo-v1/)
 - 구현됨: 파일 로더, 기존 사용자 입력 인코더, 기존 DB.
-- 미구현: 새 파일 인코더, 새 유사도 비교. 전체 검색은 아직 완료되지 않았다.
+- 내 담당: 각 기능의 호출 순서와 DB 연결.
+- 로더는 `file_loader/loader.py`, 인코더는 `file_encoder/encoder.py`로 구분한다.
 
 ```powershell
-cd text-search-demo-v1
 python -m pip install -r requirements.txt
-python app.py          # 사용자 입력 인코딩 확인
+python app.py          # 기존 사용자 입력 인코딩 확인
 python app.py --gui    # 연결 화면 초안
 ```
 
-[현재 구조·규격 문서](text-search-demo-v1/docs/README.md)
+파일 분석·검색은 미구현 부분에서 중단된다. 완성된 검색 시연은 아직 할 수 없다.
 
-개인 `study/`는 업로드에서 제외했다. 루트에 남은 이미지 검색 코드는 이전 버전 보존용이다.
+[구조·규격 문서](docs/README.md) · [공부 순서](study/learn.md) · [전체 코드 셀](study/전체코드.ipynb)
