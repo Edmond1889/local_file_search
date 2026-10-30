@@ -4,7 +4,7 @@ from tkinter import filedialog, ttk
 
 
 # %% 1. 화면 준비
-class TextSearchApp:
+class DocumentSearchApp:
     def __init__(self, root, service_factory):
         self.root = root
         self.service_factory = service_factory
@@ -13,7 +13,7 @@ class TextSearchApp:
         self.query = tk.StringVar()
         self.status = tk.StringVar(value="파일 인코더·유사도 비교 미구현")
 
-        root.title("코드·문서 텍스트 검색")
+        root.title("코드·문서 검색")
         root.geometry("760x480")
         frame = ttk.Frame(root, padding=16)
         frame.pack(fill="both", expand=True)

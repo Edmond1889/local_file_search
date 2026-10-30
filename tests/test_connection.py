@@ -3,7 +3,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock
 
-from connection.service import TextSearch
+from connection.service import DocumentSearch
 from file_encoder.encoder import FileEncoder
 from similarity.comparison import SimilaritySearch
 from file_loader.loader import find_files, load_file
@@ -23,7 +23,7 @@ class ConnectionTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             (Path(directory) / 'test.txt').write_text('본문', encoding='utf-8')
             repository = Mock()
-            service = TextSearch(FileEncoder(), Mock(), repository, SimilaritySearch())
+            service = DocumentSearch(FileEncoder(), Mock(), repository, SimilaritySearch())
             with self.assertRaises(NotImplementedError):
                 service.analyze(directory)
             repository.save.assert_not_called()
@@ -31,7 +31,7 @@ class ConnectionTests(unittest.TestCase):
     def test_query_encoder_is_only_used_for_query(self):
         query_encoder = Mock()
         query_encoder.encode_text.return_value = [1, 2]
-        service = TextSearch(FileEncoder(), query_encoder, Mock(), SimilaritySearch())
+        service = DocumentSearch(FileEncoder(), query_encoder, Mock(), SimilaritySearch())
         self.assertEqual(service.encode_query('  검색 문장  '), [1, 2])
         query_encoder.encode_text.assert_called_once_with('검색 문장')
         with self.assertRaises(NotImplementedError):

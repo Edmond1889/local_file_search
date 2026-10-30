@@ -3,7 +3,7 @@ from file_loader.loader import find_files, load_file
 
 
 # %% 1. 각 담당자의 기능을 구분해서 보관하기
-class TextSearch:
+class DocumentSearch:
     def __init__(self, file_encoder, query_encoder, repository, similarity):
         self.file_encoder = file_encoder
         self.query_encoder = query_encoder

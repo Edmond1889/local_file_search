@@ -6,7 +6,7 @@
 |---|---|
 | query_encoder/text_encoder.py | duoloo의 기존 텍스트 인코더, 원본 유지 |
 | database/db_manager.py | nohminju의 SQLite·FAISS 코드, 원본 유지 |
-| file_loader/loader.py | 이번 텍스트 전환 과정에서 추가한 로더, 기존 이미지 로더와 별개 |
+| file_loader/loader.py | 이번 문서 검색 전환 과정에서 추가한 로더, 기존 이미지 로더와 별개 |
 | file_encoder / similarity | 새 담당자 구현을 기다리는 자리, 구현 완료 아님 |
 | connection / app.py | 내 연결 작업 |
 | gui / docs / study | 화면 초안과 설명·공부 자료 |

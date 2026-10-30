@@ -11,7 +11,7 @@
 | 유사도 비교 | `SimilaritySearch.search(vector, top_k)` | 벡터 → `(ID, 점수)` 목록 **(미구현)** |
 | 정보 조회 | `Repository.find_by_id(id)` | ID → FileInfo 또는 None |
 
-[TextSearch](../connection/service.py)의 `analyze()`는 위의 파일 목록~벡터 등록을, `search()`는 입력 인코딩~정보 조회를 호출한다.
+[DocumentSearch](../connection/service.py)의 `analyze()`는 위의 파일 목록~벡터 등록을, `search()`는 입력 인코딩~정보 조회를 호출한다.
 `analyze()` 반환값은 `(저장한 파일 목록, (실패 경로, 이유) 목록)`이다. `search()`는 `(FileInfo, 점수)` 목록을 반환한다.
 
 읽기 실패는 기록하고 다음 파일을 처리한다. 미구현·모델·DB 오류는 호출자에게 전달한다.
