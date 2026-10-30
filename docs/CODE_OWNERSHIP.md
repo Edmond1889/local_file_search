@@ -1,19 +1,21 @@
-# 출처와 커밋 범위
+# 담당 범위와 공유
 
-이전 v2의 CODE_OWNERSHIP 문서를 기준으로 정리했다. 폴더 이동이 작성자 변경을 뜻하지 않는다.
-
-| 현재 코드 | 출처 / 상태 |
+| 코드 | 구분 |
 |---|---|
-| query_encoder/text_encoder.py | duoloo의 기존 텍스트 인코더, 원본 유지 |
-| database/db_manager.py | nohminju의 SQLite·FAISS 코드, 원본 유지 |
-| file_loader/loader.py | 이번 문서 검색 전환 과정에서 추가한 로더, 기존 이미지 로더와 별개 |
-| file_encoder / similarity | 새 담당자 구현을 기다리는 자리, 구현 완료 아님 |
-| connection / app.py | 내 연결 작업 |
-| gui / docs / study | 화면 초안과 설명·공부 자료 |
+| file_loader/document_loader.py | 팀원 로더 |
+| file_encoder/image_encoder.py / document_encoder.py | 팀원 이미지 인코더·문서 이미지 연결 |
+| similarity/document_embedder.py | 팀원 본문 인코딩·유사도 검색 |
+| query_encoder/text_encoder.py | 팀원 이미지용 문장 인코더 |
+| database/db_info.py / db_manager.py | 팀원 파일 자료형·DB |
+| connection/service.py / app.py / gui/window.py | 내 연결·실행·화면 코드 |
+| similarity/temporary_image_similarity.py | 사용자 요청으로 추가한 임시 이미지 비교 구현. 담당자 구현으로 교체 예정 |
+| document_info.py | 내 import 연결 파일 |
+| docs / study / tests | 설명·공부 자료·연결 검증 |
 
-이전 이미지 로더(wpptpyqe)와 이미지 인코더(hyunsli7557-ux)는 v2 원본에 남아 있다.
+팀원 알고리즘 본문은 유지한다. document_encoder.py는 가져올 때 import 경로만 현재 위치에 맞춘 상태다.
+내 임시 로더·빈 인코더는 제거했다. 이미지 비교는 사용자 요청으로 임시 구현을 다시 연결했으며 파일명·화면에 임시 상태를 표시한다.
 
-이 폴더에는 `.git`이 없다. 팀 저장소 전체를 덮어쓰지 말고 내 브랜치에서 연결 변경만 반영한다.
-`git add -- 파일경로`로 골라 올린 뒤 `git diff --cached --name-status`와 `git diff --cached`로 확인한다.
-팀원 파일 삭제·이동은 임의로 포함하지 않는다. 로더·GUI 변경도 해당 담당자와 범위를 맞춘다.
-개인 `study/`, 과거 `notes/`, 캐시·DB 데이터는 공유 PR에서 제외한다. 이번 작업은 커밋·푸시하지 않았다.
+공유 전에는 `git status`와 `git diff`로 추가·수정·삭제 목록을 확인한다.
+공부 폴더를 제외하려면 `git add .` 대신 올릴 파일 경로만 골라 스테이징한다.
+팀원 원본 복사본은 통합 상대 브랜치와 비교해 필요한 변경만 포함한다. DB·캐시·개인 메모도 제외한다.
+백업 브랜치에 올리는 작업과 팀 원본 main에 통합하는 작업은 별도로 판단한다.

@@ -1,18 +1,20 @@
-# 폴더별 역할
+# 폴더 역할
 
-| 위치 | 하는 일 | 상태 |
-|---|---|---|
-| [file_loader/loader.py](../file_loader/loader.py) | 파일 찾기·본문 읽기·파일 정보 생성 | 구현됨 |
-| [file_encoder/encoder.py](../file_encoder/encoder.py) | 본문 → 파일 벡터 | 미구현 |
-| [query_encoder/text_encoder.py](../query_encoder/text_encoder.py) | 사용자 문장 → 입력 벡터 | 기존 팀원 코드 |
-| [database/db_manager.py](../database/db_manager.py) | 파일 정보 저장·조회 | 기존 팀원 코드 |
-| [similarity/comparison.py](../similarity/comparison.py) | 벡터 등록·유사도 비교 | 미구현 |
-| [connection/service.py](../connection/service.py) | 위 기능을 순서대로 호출 | 내 연결 코드 |
-| [app.py](../app.py) / [gui/window.py](../gui/window.py) | 기능 조립·실행 화면 | 현재 가능한 범위만 확인 |
+| 위치 | 역할 |
+|---|---|
+| file_loader/document_loader.py | 파일 수집, 이미지·PDF·PPTX 읽기 |
+| file_encoder/image_encoder.py | PIL 이미지를 OpenCLIP 벡터로 변환 |
+| file_encoder/document_encoder.py | 문서에서 꺼낸 PIL 이미지를 ImageEncoder에 전달 |
+| similarity/document_embedder.py | 본문·검색 문장을 ko-SRoBERTa로 인코딩하고 비교 |
+| query_encoder/text_encoder.py | 이미지와 같은 OpenCLIP 모델로 검색 문장 인코딩 |
+| similarity/temporary_image_similarity.py | 임시 구현된 이미지 유사도 비교·파일별 최고 점수 정렬 |
+| database/db_info.py | 파일 정보를 묶는 DocumentInfo 정의 |
+| database/db_manager.py | SQLite 파일 정보 저장·조회 |
+| document_info.py | 팀원 DB가 사용하는 import 이름 연결 |
+| connection/service.py | 로더·인코더 결과와 DB 파일 ID 연결 |
+| app.py | 객체 생성과 콘솔 실행, GUI 실행 분기 |
+| gui/window.py | 폴더 선택·분석·본문/임시 이미지 검색 화면 |
+| tests / study | 연결 검증 / 설명 포함 전체 코드 |
 
-로더는 UTF-8·CP949 텍스트/코드, DOCX, 노트북 본문을 읽는다. 지원 확장자는 `SUPPORTED_EXTENSIONS`에 있다.
-PDF·HWP·옛 DOC·이미지 OCR은 지원하지 않는다. 폴더 탐색과 본문 읽기는 인코더 역할이 아니다.
-
-`study/`는 전체 코드 셀과 공부 노트, `tests/`는 연결 검증이다.
-`notes/`는 과거 메모다. 자동 보고서, 이미지 미리보기, 가짜 검색 데모는 현재 구현하지 않았다.
-새 파일 인코더·유사도 비교가 들어오기 전에는 전체 검색이 완료되지 않는다.
+최신 DocumentLoader에 이미지 읽기가 포함되어 별도 image_loader.py는 없다.
+DocumentEncoder는 PDF 경로를 읽지 않는다. PDF 본문은 DocumentEmbedder로 전달한다.

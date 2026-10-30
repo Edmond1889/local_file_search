@@ -5,3 +5,6 @@ venv/
 *.db
 *.bin
 study/.ipynb_checkpoints/
+
+# 로컬 공부 자료는 GitHub 백업에서 제외
+study/

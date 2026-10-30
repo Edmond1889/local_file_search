@@ -1,4 +1,4 @@
-"""연결 화면 초안. 파일 인코더·유사도 비교가 준비되기 전에는 검색이 완료되지 않는다."""
+"""문서 본문 검색과 임시 구현된 이미지 유사도 검색 화면."""
 import tkinter as tk
 from tkinter import filedialog, ttk
 
@@ -11,19 +11,21 @@ class DocumentSearchApp:
         self.service = None
         self.folder = tk.StringVar()
         self.query = tk.StringVar()
-        self.status = tk.StringVar(value="파일 인코더·유사도 비교 미구현")
+        self.mode = tk.StringVar(value="문서 본문")
+        self.status = tk.StringVar(value="폴더 선택 → 분석 → 검색")
 
         root.title("코드·문서 검색")
         root.geometry("760x480")
         frame = ttk.Frame(root, padding=16)
         frame.pack(fill="both", expand=True)
 
-        ttk.Label(frame, text="로더는 구현되어 있습니다. 파일 인코더와 유사도 비교는 아직 미구현입니다.").pack(anchor="w")
+        ttk.Label(frame, text="문서 본문 검색 / 이미지 유사도 검색(임시 구현)").pack(anchor="w")
         ttk.Label(frame, textvariable=self.folder).pack(anchor="w", pady=6)
         ttk.Button(frame, text="폴더 선택", command=self.select_folder).pack(anchor="w")
         ttk.Button(frame, text="분석", command=self.analyze).pack(anchor="w", pady=6)
 
         ttk.Entry(frame, textvariable=self.query).pack(fill="x")
+        ttk.Combobox(frame, textvariable=self.mode, values=("문서 본문", "이미지 유사도 검색(임시 구현)"), state="readonly").pack(anchor="w")
         self.search_button = ttk.Button(frame, text="검색", command=self.search, state="disabled")
         self.search_button.pack(anchor="w", pady=6)
         ttk.Label(frame, textvariable=self.status).pack(anchor="w")
@@ -42,7 +44,7 @@ class DocumentSearchApp:
             self.status.set("분석 버튼을 누르세요.")
 
     def analyze(self):
-        # 3. 연결 순서를 호출한다. 미구현 부분의 오류도 화면에 그대로 알린다.
+        # 3. 실제 로더·인코더·DB 연결을 실행하고 오류는 화면에 알린다.
         if not self.folder.get():
             self.status.set("폴더를 먼저 선택하세요.")
             return
@@ -78,7 +80,8 @@ class DocumentSearchApp:
 
         self.show_text("")
         try:
-            results = self.service.search(self.query.get())
+            mode = 'documents' if self.mode.get() == '문서 본문' else 'images'
+            results = self.service.search(self.query.get(), mode=mode)
         except Exception as error:
             self.status.set(f"검색 실패: {error}")
             return
