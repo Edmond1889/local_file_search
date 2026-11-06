@@ -1,0 +1,47 @@
+[폴더 탐색 담당]
+      │
+      ▼
+ FileScanner
+      │
+      │
+      ▼
+┌────────────────────┐
+│                    │
+│   너                │
+│ AnalysisService    │
+│                    │
+└─────────┬──────────┘
+          │
+ ┌────────┼─────────┐
+ ▼        ▼         ▼
+DB     Encoder    FAISS
+담당     담당       담당
+
+          ▲
+          │
+┌─────────┴──────────┐
+│                    │
+│   너                │
+│  SearchService     │
+│                    │
+└─────────┬──────────┘
+          │
+          ▼
+    SearchResult[]
+          │
+          ▼
+       GUI 담당
+
+
+
+
+| 담당 | 함수 초안 | 입력 → 출력 |
+|---|---|---|
+| 사진 수집 | `scanner.scan(folder_path)` | 폴더 경로 → `FileInfo` 목록 |
+| 이미지 읽기 | `image_loader.load(file_path)` | 사진 경로 → 읽은 이미지 |
+| 임베딩 | `image_encoder.encode(image)` | 이미지 → 숫자 배열 |
+| 임베딩 | `text_encoder.encode(query)` | 검색 문장 → 숫자 배열 |
+| 파일 정보 저장 | `repository.save(file_info)` | 파일 정보 → 파일 ID |
+| 벡터 저장 | `vector_index.add(file_id, vector)` | 파일 ID와 숫자 배열 → 저장 |
+| 벡터 검색 | `vector_index.search(vector, top_k)` | 숫자 배열 → 파일 ID와 점수 목록 |
+| 파일 정보 조회 | `repository.find_by_id(file_id)` | 파일 ID → `FileInfo` |

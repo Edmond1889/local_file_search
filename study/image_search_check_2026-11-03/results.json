@@ -1,0 +1,257 @@
+{
+  "date": "2026-11-03",
+  "model": "xlm-roberta-base-ViT-B-32",
+  "pretrained": "laion5b_s13b_b90k",
+  "score": "raw cosine similarity",
+  "image_sources": {
+    "Test1.jpg": "C:\\Capstone\\document-search-demo-v1\\assets\\images\\Test1.jpg",
+    "Test2.jpg": "C:\\Capstone\\document-search-demo-v1\\assets\\images\\Test2.jpg",
+    "Test3.jpg": "C:\\Capstone\\document-search-demo-v1\\assets\\images\\Test3.jpg",
+    "beach.jpg": "C:\\computerVision\\images\\beach.jpg",
+    "road.png": "C:\\computerVision\\images\\road.png",
+    "seal.jpg": "C:\\computerVision\\images\\seal.jpg",
+    "zebra.png": "C:\\computerVision\\images\\zebra.png"
+  },
+  "results": {
+    "고양이": [
+      {
+        "file": "Test2.jpg",
+        "score": 0.24558617547214584
+      },
+      {
+        "file": "Test3.jpg",
+        "score": 0.23862292809693345
+      },
+      {
+        "file": "Test1.jpg",
+        "score": 0.22088717370280192
+      },
+      {
+        "file": "zebra.png",
+        "score": 0.13187135936987196
+      },
+      {
+        "file": "seal.jpg",
+        "score": 0.10409348954152804
+      },
+      {
+        "file": "road.png",
+        "score": 0.0658036690211802
+      },
+      {
+        "file": "beach.jpg",
+        "score": 0.06058198500858045
+      }
+    ],
+    "누워있는 고양이": [
+      {
+        "file": "Test2.jpg",
+        "score": 0.2607476191612315
+      },
+      {
+        "file": "Test3.jpg",
+        "score": 0.21143972706293815
+      },
+      {
+        "file": "Test1.jpg",
+        "score": 0.2105131844118712
+      },
+      {
+        "file": "zebra.png",
+        "score": 0.11510430847476537
+      },
+      {
+        "file": "seal.jpg",
+        "score": 0.08902120224466888
+      },
+      {
+        "file": "beach.jpg",
+        "score": 0.0743269244323097
+      },
+      {
+        "file": "road.png",
+        "score": 0.04699023440588904
+      }
+    ],
+    "하품하는 고양이": [
+      {
+        "file": "Test2.jpg",
+        "score": 0.26318747288751954
+      },
+      {
+        "file": "Test3.jpg",
+        "score": 0.22515980671039623
+      },
+      {
+        "file": "Test1.jpg",
+        "score": 0.20339272984809165
+      },
+      {
+        "file": "zebra.png",
+        "score": 0.12433763731129603
+      },
+      {
+        "file": "seal.jpg",
+        "score": 0.10151124111731981
+      },
+      {
+        "file": "beach.jpg",
+        "score": 0.06335597747481998
+      },
+      {
+        "file": "road.png",
+        "score": 0.05495815389453688
+      }
+    ],
+    "해변": [
+      {
+        "file": "beach.jpg",
+        "score": 0.18523241518735897
+      },
+      {
+        "file": "road.png",
+        "score": 0.10691538714664546
+      },
+      {
+        "file": "seal.jpg",
+        "score": 0.0977255666607723
+      },
+      {
+        "file": "Test2.jpg",
+        "score": 0.07930494424802795
+      },
+      {
+        "file": "Test1.jpg",
+        "score": 0.06764535435851177
+      },
+      {
+        "file": "zebra.png",
+        "score": 0.055117751103058436
+      },
+      {
+        "file": "Test3.jpg",
+        "score": 0.048866783778863505
+      }
+    ],
+    "도로": [
+      {
+        "file": "road.png",
+        "score": 0.2526665583367169
+      },
+      {
+        "file": "beach.jpg",
+        "score": 0.10095987376653105
+      },
+      {
+        "file": "Test3.jpg",
+        "score": 0.08570377458799214
+      },
+      {
+        "file": "Test2.jpg",
+        "score": 0.07281784618430659
+      },
+      {
+        "file": "zebra.png",
+        "score": 0.06476906898828505
+      },
+      {
+        "file": "Test1.jpg",
+        "score": 0.06418684433774594
+      },
+      {
+        "file": "seal.jpg",
+        "score": 0.03207025879010707
+      }
+    ],
+    "물개": [
+      {
+        "file": "seal.jpg",
+        "score": 0.2605507682221791
+      },
+      {
+        "file": "Test2.jpg",
+        "score": 0.16694546338675242
+      },
+      {
+        "file": "Test3.jpg",
+        "score": 0.15466000519839537
+      },
+      {
+        "file": "beach.jpg",
+        "score": 0.12332482868890479
+      },
+      {
+        "file": "Test1.jpg",
+        "score": 0.10876196086149582
+      },
+      {
+        "file": "zebra.png",
+        "score": 0.09920471250212326
+      },
+      {
+        "file": "road.png",
+        "score": 0.07280799358591822
+      }
+    ],
+    "얼룩말": [
+      {
+        "file": "zebra.png",
+        "score": 0.24729742662726575
+      },
+      {
+        "file": "Test3.jpg",
+        "score": 0.17349682608449352
+      },
+      {
+        "file": "Test2.jpg",
+        "score": 0.17150382715522697
+      },
+      {
+        "file": "Test1.jpg",
+        "score": 0.1574672748020528
+      },
+      {
+        "file": "road.png",
+        "score": 0.12479015457761285
+      },
+      {
+        "file": "beach.jpg",
+        "score": 0.10886765427879491
+      },
+      {
+        "file": "seal.jpg",
+        "score": 0.1005603221838245
+      }
+    ],
+    "자동차": [
+      {
+        "file": "road.png",
+        "score": 0.1621412394041548
+      },
+      {
+        "file": "Test3.jpg",
+        "score": 0.11481330495484746
+      },
+      {
+        "file": "Test2.jpg",
+        "score": 0.11373882209132605
+      },
+      {
+        "file": "Test1.jpg",
+        "score": 0.09612932632662866
+      },
+      {
+        "file": "seal.jpg",
+        "score": 0.06888995679921632
+      },
+      {
+        "file": "zebra.png",
+        "score": 0.0687828463705804
+      },
+      {
+        "file": "beach.jpg",
+        "score": 0.06659869168068643
+      }
+    ]
+  }
+}

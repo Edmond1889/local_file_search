@@ -1,0 +1,1416 @@
+# 과거 구현 보존본: 2026-11-03 기준이며 현재 앱과 다릅니다.
+# 삭제된 DB·임시 비교 모듈을 가져오므로 현재 실행용으로 사용하지 마세요.
+# 현재 호출 흐름은 README.md를 참고하세요.
+# %% [markdown]
+# ### 전체 코드 공부: 설명을 읽고 셀 순서대로 실행
+#
+# 실제 소스 11개를 함수·클래스 단위로 나눴다. 코드의 # [공부 L번호] 주석에서 문법·값·연결점을 확인한다.
+# 본문 검색은 팀원 DocumentEmbedder, 이미지 검색은 temporary_image_similarity.py의 임시 코사인 비교를 사용한다.
+# 이미지용 문장과 이미지는 같은 OpenCLIP 모델을 쓴다. 본문 검색 모델의 점수와 합치지 않는다.
+# 먼저 준비·정의 셀을 실행하고, 마지막 실행 1~4 셀에서 실제 모델을 준비해 폴더 분석과 검색을 한다.
+# PDF 페이지 이미지화·OCR·옛 PPT·HWP/HWPX는 미지원이다.
+#
+# 2026-11-03 main 병합: 입력 모델 공유, 문장 벡터 첫 행 추출, DB 상대 import를 반영했다. 루트 document_info.py는 제거했다.
+
+# %%
+# [공부 L1] 학습 파일 또는 커널의 현재 위치를 경로 객체로 다루기 위해 가져온다.
+from pathlib import Path
+# [공부 L2] 실제 프로젝트 모듈을 찾을 검색 경로 sys.path를 준비한다.
+import sys
+# [공부 L3] 일반 .py 실행에는 __file__이 있고 노트북에는 보통 없다. globals()는 현재 전역 이름들을 담은
+# [공부 L3] 딕셔너리다.
+if "__file__" in globals():
+    # [공부 L4] 전체코드.py가 study 안에 있으므로 부모 두 번으로 실제 프로젝트 루트를 찾는다.
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+else:
+    # [공부 L6] 노트북에서는 커널의 현재 작업 폴더를 시작 위치로 삼는다.
+    PROJECT_ROOT = Path.cwd()
+    # [공부 L7] 현재 위치가 study 폴더이면 한 단계 위가 프로젝트다.
+    if PROJECT_ROOT.name == "study":
+        # [공부 L8] 프로젝트 루트로 이동할 경로값을 계산한다. 운영체제의 현재 폴더를 바꾸는 동작은 아니다.
+        PROJECT_ROOT = PROJECT_ROOT.parent
+# [공부 L9] 예상한 프로젝트에 실제 로더 파일이 있는지 확인한다. Path의 /는 경로 조합이다.
+if not (PROJECT_ROOT / "file_loader" / "document_loader.py").is_file():
+    # [공부 L10] 잘못된 커널 위치에서 엉뚱한 모듈을 가져오지 않도록 여기서 중단한다.
+    raise RuntimeError("프로젝트 폴더 또는 study 폴더에서 실행하세요.")
+# [공부 L11] 실제 모듈을 찾을 때 이 프로젝트를 먼저 확인하게 한다. sys.path는 Python 모듈 검색 경로 목록이다.
+sys.path.insert(0, str(PROJECT_ROOT))
+# [공부 L12] 뒤에 그대로 실은 원본의 __main__ 예제와 GUI 실행 분기가 자동 실행되지 않게 한다. 프로그램 원본 파일을
+# [공부 L12] 바꾸는 것은 아니다.
+__name__ = "study"
+
+# 팀원 DB의 from .db_info 상대 import를 원본 그대로 실행하기 위한 노트북 패키지 문맥이다.
+__package__ = "database"
+
+
+# %% [markdown]
+# ### database/db_info.py · 1–4행
+#
+# 파일 접수 카드의 양식이다. 필드는 이전과 같고 원본의 머리 주석만 제거됐다.
+
+# %%
+# [공부 L1] @dataclass 장식을 가져온다. 값 묶음의 생성자 등을 자동 생성해 준다.
+from dataclasses import dataclass
+# [공부 L2] Optional[int]는 정수 또는 None이라는 타입 설명이다. 실행 중 자동 검사를 하지는 않는다.
+from typing import Optional
+
+
+
+
+# %% [markdown]
+# ### database/db_info.py · 5–14행
+#
+# 파일 접수 카드의 양식이다. 필드는 이전과 같고 원본의 머리 주석만 제거됐다.
+
+# %%
+# [공부 L5] 바로 아래 클래스를 필드 기반의 자료형으로 만든다.
+@dataclass
+# [공부 L6] 파일의 이름·경로·크기·시각 등을 담는다. 로더 본문이나 벡터와 다른 자료다.
+class DocumentInfo:
+    # [공부 L7] 실제 파일의 절대 경로다. 저장과 검색 결과의 파일 찾기를 잇는 값이다.
+    file_path: str
+    # [공부 L8] 확장자를 포함한 파일 이름이다. GUI에 표시할 때 사용한다.
+    file_name: str
+    # [공부 L9] .pdf, .pptx, .hwp 같은 확장자 문자열이다. 이 값을 저장한다고 본문 파서가 생기는 것은 아니다.
+    file_extension: str
+    # [공부 L10] 바이트 단위 파일 크기다. 글자 수나 벡터 차원이 아니다.
+    file_size: int
+    # [공부 L11] 파일 바이트의 SHA-256이다. 현재 DB는 해시로 자동 중복 제거하지 않는다.
+    file_hash: str
+    # [공부 L12] 연결 서비스가 정보 객체를 만든 UTC 시각이다. 파일의 운영체제 생성 시각과 다르다.
+    created_at: str
+    # [공부 L13] 현재 연결에서 실제 파일 수정 시각을 UTC 문자열로 보관한다.
+    updated_at: str
+    # [공부 L14] 저장 전에는 ID가 없어 None이다. save()의 반환 ID를 연결 코드가 받아 사용한다.
+    file_id: Optional[int] = None
+
+
+# %% [markdown]
+# ### database/db_manager.py · 1–4행
+#
+# 최신 DB는 .db_info에서 DocumentInfo를 직접 가져온다. 루트 연결 파일은 더 이상 필요 없다. 저장·조회 로직은 그대로다.
+
+# %%
+# [공부 L1] 파일 정보 테이블을 읽고 쓰는 Python 표준 SQLite 도구다.
+import sqlite3
+# [공부 L2] 점 하나는 현재 패키지를 뜻한다. 이 파일은 database 안에 있으므로 같은 폴더의 db_info에서 자료형을 가져온다. 루트 document_info.py를 거치지 않는다.
+from .db_info import DocumentInfo
+
+
+
+
+# %% [markdown]
+# ### database/db_manager.py · 5–47행
+#
+# 최신 DB는 .db_info에서 DocumentInfo를 직접 가져온다. 루트 연결 파일은 더 이상 필요 없다. 저장·조회 로직은 그대로다.
+
+# %%
+# [공부 L5] 파일 정보 저장·조회를 하는 기존 팀원 클래스다. 유사도 비교나 파일 내용 해석은 하지 않는다.
+class Repository:
+    # [공부 L6] DB 경로를 받아 보관하고 테이블을 준비한다. app.py에서는 임시 폴더의 경로를 전달한다.
+    def __init__(self, db_path="document_metadata.db"):
+        # [공부 L7] save/find_by_id도 같은 DB를 열도록 경로를 객체에 저장한다.
+        self.db_path = db_path
+        # [공부 L8] 객체를 만들 때 테이블 초기화도 실행한다. 이름 앞 _는 내부용이라는 관례다.
+        self._init_db()
+
+    # [공부 L10] document_metadata 테이블이 없을 때 준비한다. 기존 이미지 테이블의 데이터 이전은 하지 않는다.
+    def _init_db(self):
+        # [공부 L11] SQLite 연결을 열고 블록 성공 시 변경 확정, 예외 시 롤백을 수행한다. 이 with는 연결 close를
+        # [공부 L11] 보장하지 않는다. Windows 파일 잠금이 검증에서 확인되어 DB 담당자 점검 사항으로 남겼고 원본 코드는
+        # [공부 L11] 유지했다.
+        with sqlite3.connect(self.db_path) as conn:
+            # [공부 L12] 여러 줄 SQL을 실행한다. CREATE는 테이블 준비, INSERT는 데이터 저장이다. 삼중 따옴표 안은
+            # [공부 L12] Python이 아니라 SQL 문자열이다.
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS document_metadata (
+                    file_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path TEXT UNIQUE NOT NULL,
+                    file_name TEXT NOT NULL,
+                    file_extension TEXT NOT NULL,
+                    file_size INTEGER,
+                    file_hash TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+    # [공부 L25] DocumentInfo를 받아 저장하고 정수 파일 번호를 반환한다. 함수 인자 이름이 document여도 실제 값은
+    # [공부 L25] 파일 내용이 아니라 메타데이터 객체다.
+    def save(self, document):
+        # [공부 L26] SQLite 연결을 열고 블록 성공 시 변경 확정, 예외 시 롤백을 수행한다. 이 with는 연결 close를
+        # [공부 L26] 보장하지 않는다. Windows 파일 잠금이 검증에서 확인되어 DB 담당자 점검 사항으로 남겼고 원본 코드는
+        # [공부 L26] 유지했다.
+        with sqlite3.connect(self.db_path) as conn:
+            # [공부 L27] INSERT를 실행하고 커서를 받는다. SQL의 일곱 ?에는 뒤 튜플의 값 일곱 개가 순서대로 들어간다.
+            cursor = conn.execute("""
+                INSERT INTO document_metadata (
+                    file_path, file_name, file_extension,
+                    file_size, file_hash, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                # [공부 L33] 첫 두 컬럼에 경로와 이름을 넣는다. SQL 컬럼 순서와 전달 값 순서가 맞아야 한다.
+                document.file_path, document.file_name,
+                # [공부 L34] 확장자와 바이트 크기를 전달한다. 형식을 해석하는 것이 아니라 값만 저장한다.
+                document.file_extension, document.file_size,
+                # [공부 L35] 해시와 정보 생성 시각을 전달한다.
+                document.file_hash, document.created_at,
+                # [공부 L36] 실제 파일 수정 시각을 마지막 값으로 전달한다.
+                document.updated_at
+            ))
+            # [공부 L38] DB가 정한 실제 행 번호를 돌려준다. return으로 나가도 with의 트랜잭션 정리는 수행된다. 연결 코드가 이
+            # [공부 L38] 번호를 파일 벡터와 묶을 예정이다.
+            return cursor.lastrowid
+
+    # [공부 L40] 검색 결과의 파일 번호로 정보 한 건을 조회한다. 번호가 없으면 None을 반환한다.
+    def find_by_id(self, file_id):
+        # [공부 L41] SQLite 연결을 열고 블록 성공 시 변경 확정, 예외 시 롤백을 수행한다. 이 with는 연결 close를
+        # [공부 L41] 보장하지 않는다. Windows 파일 잠금이 검증에서 확인되어 DB 담당자 점검 사항으로 남겼고 원본 코드는
+        # [공부 L41] 유지했다.
+        with sqlite3.connect(self.db_path) as conn:
+            # [공부 L42] SQL 조회 결과 중 한 행을 받을 준비다.
+            row = conn.execute(
+                # [공부 L43] 지정 ID의 모든 컬럼을 읽는다. *로 읽는 컬럼 순서가 DocumentInfo 필드 순서와 맞아야 한다.
+                "SELECT * FROM document_metadata WHERE file_id = ?",
+                # [공부 L44] 원소 하나의 튜플로 SQL 매개변수를 전달한다. (file_id)만 쓰면 튜플이 아니므로 쉼표가 필요하다.
+                (file_id,)
+            # [공부 L45] 조회 결과의 첫 행을 받는다. 없으면 None이다.
+            ).fetchone()
+
+        # [공부 L47] 조건부 표현식이다. 행이 있으면 0번 값은 ID로, 나머지 row[1:]은 *로 풀어 자료형의 나머지 필드에 넣는다.
+        # [공부 L47] 행이 없으면 None이다. 즉 (DB 행 → DocumentInfo) 복원이다.
+        return DocumentInfo(*row[1:], file_id=row[0]) if row else None
+
+
+# %% [markdown]
+# ### file_loader/document_loader.py
+#
+# **원본 1–10행.** 실제 이미지 로더는 load_image, 문서 로더는 process_file이다. PDF 본문·PPTX·이미지만 수집하며 PDF 렌더링/OCR은 없다.
+#
+# 아래 코드는 해당 실제 파일 내용이며 설명 주석만 추가했다. import는 실제 프로젝트 모듈을 읽는다.
+
+# %%
+import os
+import io
+import urllib.parse
+# [공부 L4] @dataclass로 값을 담는 클래스의 생성자 등을 자동으로 만든다.
+from dataclasses import dataclass
+# [공부 L5] Generator는 하나씩 내놓는 반복값, List는 목록, Optional은 값 또는 None이라는 타입 설명이다.
+from typing import Generator, List, Optional
+# [공부 L6] 이미지를 열고 RGB로 바꾸는 Pillow의 Image 모듈이다.
+from PIL import Image
+# [공부 L7] PDF의 페이지와 텍스트를 읽는다. 이 import 자체가 문서를 처리하는 것은 아니다.
+from pypdf import PdfReader
+# [공부 L8] PPTX 안의 슬라이드·글상자·표·이미지를 읽는 도구다.
+from pptx import Presentation
+
+
+
+
+# %% [markdown]
+# ### file_loader/document_loader.py
+#
+# **원본 11–20행.** 실제 이미지 로더는 load_image, 문서 로더는 process_file이다. PDF 본문·PPTX·이미지만 수집하며 PDF 렌더링/OCR은 없다.
+#
+# 아래 코드는 해당 실제 파일 내용이며 설명 주석만 추가했다. import는 실제 프로젝트 모듈을 읽는다.
+
+# %%
+# [공부 L11] 바로 아래 DocumentChunk에 필드 기반 생성자를 붙인다. 타입 표시는 실행 중 값을 자동 검사하는 규칙은
+# [공부 L11] 아니다.
+@dataclass
+# [공부 L12] 한 페이지/슬라이드/이미지를 담는 dataclass다. file_name/file_path는 파일,
+# [공부 L12] page_number는 위치, text는 본문, chunk_type은 pdf/pptx/image 종류다. image는
+# [공부 L12] PIL 이미지 또는 None이다. DB 행의 file_id를 가진 DocumentInfo와 다른 형태다.
+class DocumentChunk:
+    file_name: str
+    file_path: str
+    page_number: int
+    text: str
+    chunk_type: str
+    # [공부 L18] 이미지가 있으면 PIL 객체, 없으면 None이다. 기본값이 있으므로 텍스트 청크를 만들 때 image를 생략할 수
+    # [공부 L18] 있다.
+    image: Optional[Image.Image] = None
+
+
+
+
+# %% [markdown]
+# ### file_loader/document_loader.py
+#
+# **원본 21–36행.** 실제 이미지 로더는 load_image, 문서 로더는 process_file이다. PDF 본문·PPTX·이미지만 수집하며 PDF 렌더링/OCR은 없다.
+#
+# 아래 코드는 해당 실제 파일 내용이며 설명 주석만 추가했다. import는 실제 프로젝트 모듈을 읽는다.
+
+# %%
+# [공부 L21] root_dir 폴더 아래에서 PDF·PPTX·이미지 파일 경로를 generator로 돌려준다.
+# [공부 L21] TXT·코드·DOCX·HWP는 이 팀원 스캐너의 수집 대상이 아니다.
+class DocumentScanner:
+    # [공부 L22] 이 팀원 스캐너가 수집하는 확장자 집합이다. .txt/.py/.docx 등은 이 집합에 없다.
+    SUPPORTED_EXTENSIONS = {'.pdf', '.pptx', '.jpg', '.jpeg', '.png', '.webp'}
+
+    # [공부 L24] 폴더 경로를 받아 객체의 self.root_dir에 보관한다. 여기서 탐색이 시작되지는 않는다.
+    def __init__(self, root_dir: str):
+        self.root_dir = root_dir
+
+    # [공부 L27] 인자 없이 보관한 폴더를 os.walk로 순회한다. yield는 경로를 한 개씩 꺼낼 수 있게 하는 문법으로, 한
+    # [공부 L27] 번에 목록 전체를 반환하는 return과 다르다.
+    def scan_files(self) -> Generator[str, None, None]:
+        # [공부 L28] 현재 폴더·하위 폴더 목록·파일 이름 목록을 받는다. 사용하지 않는 하위 폴더 목록은 _로 받는다.
+        for root, _, files in os.walk(self.root_dir):
+            for file in files:
+                # [공부 L30] Office 프로그램이 만드는 임시 잠금 파일 이름을 건너뛰려는 검사다.
+                if file.startswith('~$'):
+                    # [공부 L31] 현재 파일 또는 실패한 페이지만 건너뛰고 반복문의 다음 항목으로 간다.
+                    continue
+                ext = os.path.splitext(file)[1].lower()
+                if ext in self.SUPPORTED_EXTENSIONS:
+                    # [공부 L34] 현재 폴더와 파일 이름을 합친 경로를 하나 내놓는다. 호출자가 다음 값을 요청하면 여기서 이어서 탐색한다.
+                    yield os.path.join(root, file)
+
+
+
+
+# %% [markdown]
+# ### file_loader/document_loader.py
+#
+# **원본 37–138행.** 실제 이미지 로더는 load_image, 문서 로더는 process_file이다. PDF 본문·PPTX·이미지만 수집하며 PDF 렌더링/OCR은 없다.
+#
+# 아래 코드는 해당 실제 파일 내용이며 설명 주석만 추가했다. import는 실제 프로젝트 모듈을 읽는다.
+
+# %%
+# [공부 L37] process_file(path)가 확장자를 보고 PDF/PPTX/이미지 함수로 분기한다. 각 함수는
+# [공부 L37] DocumentChunk 목록을 반환한다. 원본은 오류를 대부분 빈 목록으로 처리하므로 호출자가 실패와 본문 없음의
+# [공부 L37] 구분을 추가로 합의해야 한다.
+class DocumentLoader:
+    # [공부 L38] 파일 경로에서 이름을 꺼내 URL 퍼센트 인코딩만 풀어 표시용 이름으로 만든다. 실제 디스크 경로나 파일 이름을
+    # [공부 L38] 변경하지 않는다.
+    def _get_clean_filename(self, file_path: str) -> str:
+        raw_name = os.path.basename(file_path)
+        # [공부 L40] %20처럼 URL 인코딩된 이름을 표시용 글자로 풀어 반환한다.
+        return urllib.parse.unquote(raw_name)
+
+    # [공부 L42] 이미지 경로 → RGB PIL 이미지가 든 청크 한 개의 목록이다. text는 빈 문자열이며 OCR은 수행하지
+    # [공부 L42] 않는다. with로 원본을 닫기 전에 convert가 별도 RGB 이미지를 만든다.
+    def load_image(self, file_path: str) -> List[DocumentChunk]:
+        file_name = self._get_clean_filename(file_path)
+        try:
+            # [공부 L45] 실제 이미지 파일을 열고 with 블록 종료 시 원본 핸들을 닫는다.
+            with Image.open(file_path) as img:
+                # [공부 L46] 색상 채널이 일관되도록 RGB 이미지를 만든다. 모델 전용 크기 조절과 정규화는 아직 하지 않는다.
+                pil_img = img.convert("RGB")
+                # [공부 L47] 반환값이 청크 하나가 아니라 목록임에 주의한다. PDF·PPTX도 같은 목록 모양으로 받게 하려는 규격이다.
+                return [DocumentChunk(
+                    file_name=file_name,
+                    file_path=file_path,
+                    page_number=1,
+                    text="",
+                    chunk_type="image",
+                    image=pil_img
+                )]
+        # [공부 L55] 이 원본은 여러 읽기 오류를 모두 받아 빈 목록으로 넘긴다. 실패 이유를 외부에 설명하는 오류 객체는 반환하지
+        # [공부 L55] 않는다.
+        except Exception:
+            # [공부 L56] 읽기 실패·미지원·데이터 없음 때 빈 목록을 반환한다. 이 값의 의미를 연결 담당자가 따로 구분해야 한다.
+            return []
+
+    # [공부 L58] PDF 경로 → 글이 있는 페이지별 청크 목록이다. 페이지 번호는 1부터 센다. 이 구현은 extract_text만
+    # [공부 L58] 쓰므로 스캔 PDF의 이미지 OCR이나 페이지 렌더링은 하지 않는다.
+    def load_pdf(self, file_path: str) -> List[DocumentChunk]:
+        chunks: List[DocumentChunk] = []
+        file_name = self._get_clean_filename(file_path)
+
+        try:
+            # [공부 L63] PDF 페이지에 접근할 읽기 객체를 만든다.
+            reader = PdfReader(file_path)
+            # [공부 L64] enumerate는 순번과 페이지 객체를 함께 준다. start=1이므로 사용자에게 보일 첫 페이지 번호가 1이다.
+            for page_idx, page in enumerate(reader.pages, start=1):
+                try:
+                    # [공부 L66] PDF 텍스트 추출이 None이면 빈 문자열을 사용한다. 그림 속 글자를 읽어 주는 OCR 함수는 아니다.
+                    text = page.extract_text() or ""
+                    # [공부 L67] 추출된 글 앞뒤의 공백과 줄바꿈을 지운다.
+                    clean_text = text.strip()
+                    # [공부 L68] 실제 본문이 있는 페이지에 대해서만 청크를 만든다. 텍스트 없는 페이지가 결과에서 빠질 수 있다.
+                    if clean_text:
+                        chunks.append(DocumentChunk(
+                            file_name=file_name,
+                            file_path=file_path,
+                            page_number=page_idx,
+                            text=clean_text,
+                            chunk_type="pdf"
+                        ))
+                # [공부 L76] 이 원본은 여러 읽기 오류를 모두 받아 빈 목록으로 넘긴다. 실패 이유를 외부에 설명하는 오류 객체는 반환하지
+                # [공부 L76] 않는다.
+                except Exception:
+                    # [공부 L77] 현재 파일 또는 실패한 페이지만 건너뛰고 반복문의 다음 항목으로 간다.
+                    continue
+        # [공부 L78] 이 원본은 여러 읽기 오류를 모두 받아 빈 목록으로 넘긴다. 실패 이유를 외부에 설명하는 오류 객체는 반환하지
+        # [공부 L78] 않는다.
+        except Exception:
+            # [공부 L79] 읽기 실패·미지원·데이터 없음 때 빈 목록을 반환한다. 이 값의 의미를 연결 담당자가 따로 구분해야 한다.
+            return []
+
+        return chunks
+
+    # [공부 L83] PPTX 경로 → 슬라이드별 텍스트·선택적 이미지 청크다. 글상자·표의 글을 합치고, 그림을 만나면
+    # [공부 L83] extracted_image에 보관한다. 그림이 여러 개면 이 원본은 마지막 이미지 하나만 남긴다.
+    def load_pptx(self, file_path: str) -> List[DocumentChunk]:
+        chunks: List[DocumentChunk] = []
+        file_name = self._get_clean_filename(file_path)
+
+        try:
+            # [공부 L88] PPTX 문서를 열어 슬라이드를 읽는다.
+            prs = Presentation(file_path)
+            # [공부 L89] 슬라이드 번호와 객체를 1부터 하나씩 받는다.
+            for slide_idx, slide in enumerate(prs.slides, start=1):
+                slide_texts: List[str] = []
+                # [공부 L91] 이번 슬라이드에서 찾은 이미지 하나를 담는 변수다. 슬라이드마다 None으로 다시 시작한다.
+                extracted_image: Optional[Image.Image] = None
+
+                # [공부 L93] 슬라이드 안의 글상자·표·그림 같은 도형을 하나씩 검사한다.
+                for shape in slide.shapes:
+                    # [공부 L94] 글상자처럼 문단을 가진 도형인지 검사한다.
+                    if shape.has_text_frame:
+                        for paragraph in shape.text_frame.paragraphs:
+                            line = paragraph.text.strip()
+                            if line:
+                                slide_texts.append(line)
+                    # [공부 L99] 앞의 글상자 조건이 아니고 표를 가진 경우 행과 셀의 글을 읽는다.
+                    elif shape.has_table:
+                        for row in shape.table.rows:
+                            for cell in row.cells:
+                                cell_text = cell.text.strip()
+                                if cell_text:
+                                    slide_texts.append(cell_text)
+                    # [공부 L105] 원본에서 그림 도형을 뜻하는 번호 13을 사용한다. 이 경우 이미지 바이트를 꺼낸다.
+                    elif shape.shape_type == 13:
+                        try:
+                            # [공부 L107] PPTX 안에 들어 있는 이미지의 원본 바이트를 받는다. 파일 경로가 아니다.
+                            image_bytes = shape.image.blob
+                            # [공부 L108] 이미지 바이트를 메모리 파일처럼 열고 RGB 이미지로 바꾼다. 이 변수에 새 값을 대입하므로 이전 그림은 대체된다.
+                            extracted_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+                        # [공부 L109] 이 원본은 여러 읽기 오류를 모두 받아 빈 목록으로 넘긴다. 실패 이유를 외부에 설명하는 오류 객체는 반환하지
+                        # [공부 L109] 않는다.
+                        except Exception:
+                            # [공부 L110] 이번 그림 추출 오류를 무시하고 남은 도형을 계속 처리한다. 원본의 현재 오류 처리 방식이다.
+                            pass
+
+                combined_text = "\n".join(slide_texts).strip()
+                # [공부 L113] 글 또는 이미지가 하나라도 있는 슬라이드를 결과에 넣는다. text가 비어 있고 image만 있는 청크도 가능하다.
+                if combined_text or extracted_image:
+                    chunks.append(DocumentChunk(
+                        file_name=file_name,
+                        file_path=file_path,
+                        page_number=slide_idx,
+                        text=combined_text,
+                        chunk_type="pptx",
+                        image=extracted_image
+                    ))
+        # [공부 L122] 이 원본은 여러 읽기 오류를 모두 받아 빈 목록으로 넘긴다. 실패 이유를 외부에 설명하는 오류 객체는 반환하지
+        # [공부 L122] 않는다.
+        except Exception:
+            # [공부 L123] 읽기 실패·미지원·데이터 없음 때 빈 목록을 반환한다. 이 값의 의미를 연결 담당자가 따로 구분해야 한다.
+            return []
+
+        return chunks
+
+    # [공부 L127] 존재하고 크기가 0이 아닌 파일만 처리한다. 확장자를 보고 읽는 함수를 고르고, 미지원 또는 실패는 []를 반환한다.
+    # [공부 L127] 청크의 파일 정보를 DB에 연결하는 일은 DocumentSearch가 맡는다.
+    def process_file(self, file_path: str) -> List[DocumentChunk]:
+        # [공부 L128] 파일이 없으면 or의 뒤를 평가하지 않는다. 파일이 있더라도 0바이트면 처리하지 않는다.
+        if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+            # [공부 L129] 읽기 실패·미지원·데이터 없음 때 빈 목록을 반환한다. 이 값의 의미를 연결 담당자가 따로 구분해야 한다.
+            return []
+
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext == '.pdf':
+            return self.load_pdf(file_path)
+        elif ext == '.pptx':
+            return self.load_pptx(file_path)
+        elif ext in {'.jpg', '.jpeg', '.png', '.webp'}:
+            return self.load_image(file_path)
+        # [공부 L138] 읽기 실패·미지원·데이터 없음 때 빈 목록을 반환한다. 이 값의 의미를 연결 담당자가 따로 구분해야 한다.
+        return []
+
+
+# %% [markdown]
+# ### file_encoder/image_encoder.py
+#
+# **원본 1–7행.** PIL 이미지를 OpenCLIP으로 인코딩한다. 문서의 PIL 이미지에도 같은 객체를 사용한다.
+#
+# 아래 코드는 해당 실제 파일 내용이며 설명 주석만 추가했다. import는 실제 프로젝트 모듈을 읽는다.
+
+# %%
+
+import numpy as np
+import open_clip
+import torch
+from PIL import Image, ImageOps
+
+
+
+
+# %% [markdown]
+# ### file_encoder/image_encoder.py
+#
+# **원본 8–121행.** PIL 이미지를 OpenCLIP으로 인코딩한다. 문서의 PIL 이미지에도 같은 객체를 사용한다.
+#
+# 아래 코드는 해당 실제 파일 내용이며 설명 주석만 추가했다. import는 실제 프로젝트 모듈을 읽는다.
+
+# %%
+# [공부 L8] 이미지 한 장·여러 장을 OpenCLIP 벡터로 바꾸는 기존 구현이다. 새 DocumentEncoder가 이 클래스에
+# [공부 L8] 작업을 맡긴다. 원본의 영역별 encode_with_crops도 포함했지만 현재 앱에 연결하거나 모델 추론을 시연한
+# [공부 L8] 것은 아니다.
+class ImageEncoder:
+    """PIL 이미지를 OpenCLIP으로 512차원 벡터로 변환"""
+
+    # [공부 L11] 모델·학습 가중치·CPU/GPU·배치 크기를 받아 준비한다. 기본값의 512차원 검사를 포함한다. 클래스 정의 셀만
+    # [공부 L11] 실행할 때 모델 객체가 만들어지는 것은 아니다.
+    def __init__(
+        self,
+        model_name="xlm-roberta-base-ViT-B-32",
+        pretrained="laion5b_s13b_b90k",
+        device=None,
+        batch_size=8
+    ):
+        if batch_size < 1:
+            raise ValueError("batch_size는 1 이상이어야 합니다.")
+
+        # CPU 또는 GPU 설정
+        # [공부 L22] 명시한 device가 없으면 사용 가능한 CUDA 또는 CPU를 선택해 계산 장치 객체를 만든다.
+        self.device = torch.device(
+            device or ("cuda" if torch.cuda.is_available() else "cpu")
+        )
+        self.model_name = model_name
+        self.pretrained = pretrained
+        self.batch_size = batch_size
+
+        # OpenCLIP 모델과 전처리 기능 불러오기
+        # [공부 L30] 모델과 전처리를 함께 받는다. 가운데 사용하지 않는 반환값만 _로 받는다.
+        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
+            model_name,
+            pretrained=pretrained,
+            device=self.device
+        )
+
+        self.model.eval()
+        # [공부 L37] 이미지 인코더의 출력 숫자 개수를 읽는다. 입력 픽셀 수나 이미지 개수와 다르다.
+        self.embedding_dim = self.model.visual.output_dim
+
+        # [공부 L39] 이 원본은 512차원 모델을 전제로 하므로 다른 차원의 모델을 거부한다.
+        if self.embedding_dim != 512:
+            raise ValueError(
+                f"512차원 모델이 필요합니다. 현재 모델: {self.embedding_dim}차원"
+            )
+
+    # [공부 L44] PIL 이미지인지 확인하고 EXIF 방향·RGB를 맞춘 뒤 모델 전용 전처리를 한다. 입력은 파일 경로가 아니다.
+    def _preprocess_image(self, image):
+        """PIL 이미지를 OpenCLIP 입력 형태로 전처리"""
+        # [공부 L46] 이미지 객체를 받는 함수다. 문자열 파일 경로를 넣으면 TypeError가 발생한다.
+        if not isinstance(image, Image.Image):
+            raise TypeError("PIL 이미지 객체를 전달해야 합니다.")
+
+        # 이미지 방향 보정 및 RGB 변환
+        # [공부 L50] 카메라의 EXIF 방향 정보를 반영해 화면 방향을 보정한다.
+        image = ImageOps.exif_transpose(image)
+        image = image.convert("RGB")
+
+        return self.preprocess(image)
+
+    # [공부 L55] 이미지 한 장을 전처리한 뒤 모델에 넣고, 정규화한 1차원 NumPy float32 벡터를 반환한다.
+    def encode(self, image):
+        """이미지 한 장을 512차원 float32 벡터로 변환"""
+        image_tensor = self._preprocess_image(image)
+        # [공부 L58] 이미지 한 개도 배치 축을 추가해 모델에 넣고 계산 장치를 맞춘다.
+        image_tensor = image_tensor.unsqueeze(0).to(self.device)
+
+        # [공부 L60] 학습용 기울기 기록 등을 끈 추론 구간이다. 문서 내용이나 이미지를 학습해 모델을 갱신하지 않는다.
+        with torch.inference_mode():
+            embedding = self.model.encode_image(
+                image_tensor,
+                # [공부 L63] 모델이 반환하는 이미지 벡터 길이를 정규화하도록 요청한다. 이 줄 자체가 문서와 문장의 비교는 아니다.
+                normalize=True
+            )
+
+        # [공부 L66] 배치 한 개 축을 제거하고 CPU NumPy float32 배열로 반환한다.
+        return embedding.squeeze(0).cpu().numpy().astype(np.float32)
+
+    # [공부 L68] 여러 PIL 이미지를 batch_size만큼 나누어 추론하고 결과 벡터들을 행으로 합친다. 문서 페이지 렌더링 기능은
+    # [공부 L68] 아니다.
+    def encode_batch(self, images):
+        """여러 PIL 이미지를 Batch로 임베딩"""
+        images = list(images)
+        vectors = []
+
+        # [공부 L73] 시작 위치를 배치 크기만큼 증가시키며 여러 이미지를 나누어 처리한다.
+        for start in range(0, len(images), self.batch_size):
+            # [공부 L74] 이번 배치에 해당하는 이미지 구간만 슬라이싱으로 꺼낸다.
+            batch_images = images[start:start + self.batch_size]
+
+            # 여러 이미지를 전처리한 뒤 하나의 Batch로 묶기
+            batch_tensors = [
+                self._preprocess_image(image)
+                for image in batch_images
+            ]
+
+            # [공부 L82] 전처리된 여러 이미지 텐서를 배치 하나로 쌓고 계산 장치를 맞춘다.
+            batch = torch.stack(batch_tensors).to(self.device)
+
+            # [공부 L84] 학습용 기울기 기록 등을 끈 추론 구간이다. 문서 내용이나 이미지를 학습해 모델을 갱신하지 않는다.
+            with torch.inference_mode():
+                embeddings = self.model.encode_image(
+                    batch,
+                    # [공부 L87] 모델이 반환하는 이미지 벡터 길이를 정규화하도록 요청한다. 이 줄 자체가 문서와 문장의 비교는 아니다.
+                    normalize=True
+                )
+
+            vectors.append(
+                embeddings.cpu().numpy().astype(np.float32)
+            )
+
+        if vectors:
+            # [공부 L95] 배치별 결과들을 행 방향으로 연결해 전체 이미지 순서의 벡터 배열을 만든다.
+            return np.concatenate(vectors, axis=0)
+
+        # [공부 L97] 입력 이미지가 없으면 모양이 (0, 512)인 빈 배열을 반환한다.
+        return np.empty((0, 512), dtype=np.float32)
+        
+    # [공부 L99] 원본 전체와 네 사분면을 합쳐 다섯 이미지로 만든 뒤 encode_batch로 넘긴다. 결과는 파일 벡터 한 개가
+    # [공부 L99] 아니라 여러 벡터의 배열이다.
+    def encode_with_crops(self, image): ##테스트 필요
+        """전체 이미지와 4개 영역을 각각 임베딩"""
+        # [공부 L101] 이미지 객체를 받는 함수다. 문자열 파일 경로를 넣으면 TypeError가 발생한다.
+        if not isinstance(image, Image.Image):
+            raise TypeError("PIL 이미지 객체를 전달해야 합니다.")
+
+        # [공부 L104] 이미지 가로·세로 두 값을 나누어 받는다.
+        width, height = image.size
+
+        # [공부 L106] 너무 작아 사분면을 나누기 어려우면 원본 하나만 encode_batch로 보낸다.
+        if width < 2 or height < 2:
+            return self.encode_batch([image])
+
+        # [공부 L109] //는 정수 몫이다. 가로 중간 좌표를 계산한다.
+        mid_x = width // 2
+        # [공부 L110] 세로 중간 좌표를 계산한다.
+        mid_y = height // 2
+
+        images = [
+            image,  # 전체 이미지
+            image.crop((0, 0, mid_x, mid_y)),        # 왼쪽 위
+            image.crop((mid_x, 0, width, mid_y)),     # 오른쪽 위
+            image.crop((0, mid_y, mid_x, height)),    # 왼쪽 아래
+            image.crop((mid_x, mid_y, width, height)) # 오른쪽 아래
+        ]
+
+        # [공부 L120] 만든 전체·부분 이미지 목록을 같은 모델로 배치 인코딩한다.
+        return self.encode_batch(images)
+
+
+
+# %% [markdown]
+# ### file_encoder/document_encoder.py
+#
+# **원본 1–4행.** 문서에서 추출한 PIL 이미지를 ImageEncoder에 전달하는 팀원 원본이다. PDF 경로를 직접 받지 않는다.
+#
+# 아래 코드는 해당 실제 파일 내용이며 설명 주석만 추가했다. import는 실제 프로젝트 모듈을 읽는다.
+
+# %%
+
+# [공부 L2] 원본의 embedding.image_encoder 경로는 현재 구조에 없다. 가져온 복사본에서 이 import 경로
+# [공부 L2] 한 줄만 맞췄다.
+from file_encoder.image_encoder import ImageEncoder
+
+
+
+
+# %% [markdown]
+# ### file_encoder/document_encoder.py
+#
+# **원본 5–17행.** 문서에서 추출한 PIL 이미지를 ImageEncoder에 전달하는 팀원 원본이다. PDF 경로를 직접 받지 않는다.
+#
+# 아래 코드는 해당 실제 파일 내용이며 설명 주석만 추가했다. import는 실제 프로젝트 모듈을 읽는다.
+
+# %%
+# [공부 L5] 이름과 달리 PDF/PPTX 파일을 여는 클래스가 아니라 페이지/슬라이드의 PIL 이미지를 받아
+# [공부 L5] ImageEncoder에 전달하는 얇은 연결이다. 먼저 페이지를 이미지로 만드는 기능이 필요할 수 있으며 이번
+# [공부 L5] 작업에서 새로 구현하지 않았다.
+class DocumentEncoder:
+    """PDF 페이지와 PPT 슬라이드의 이미지 임베딩"""
+
+    # [공부 L8] image_encoder를 전달받으면 그 객체를 사용하고, 생략하면 실제 ImageEncoder를 만든다. 실제로
+    # [공부 L8] 객체를 만들 때 모델이 준비되므로 정의 셀만 실행하는 것과 구분한다.
+    def __init__(self, image_encoder=None):
+        # [공부 L9] 전달한 객체가 있으면 사용하고 없으면 기본 ImageEncoder()를 만든다. or 뒤의 생성은 앞 값이 참이면
+        # [공부 L9] 실행하지 않는다.
+        self.image_encoder = image_encoder or ImageEncoder()
+
+    # [공부 L11] PIL 이미지 한 개를 받아 self.image_encoder.encode(image)의 반환값을 그대로 돌려준다.
+    def encode(self, image):
+        """페이지 또는 슬라이드 한 장 임베딩"""
+        # [공부 L13] 이미지 임베딩 구현을 중복 작성하지 않고 원본 ImageEncoder에 맡긴다.
+        return self.image_encoder.encode(image)
+
+    # [공부 L15] PIL 이미지 목록을 받아 기존 배치 인코더의 결과를 그대로 돌려준다. 본문 문자열을 받는
+    # [공부 L15] DocumentEmbedder와 입력이 다르다.
+    def encode_batch(self, images):
+        """여러 페이지 또는 슬라이드 임베딩"""
+        # [공부 L17] 여러 이미지도 같은 의존 객체의 배치 함수에 맡긴다.
+        return self.image_encoder.encode_batch(images)
+
+
+# %% [markdown]
+# ### query_encoder/text_encoder.py · 1–3행
+#
+# 이미지 모델 객체와 tokenizer를 전달받아 공유한다. 한 문장도 (1, 512) 배열로 반환한다. 생성자가 모델 이름을 받는 예전 규격과 다르다.
+
+# %%
+# [공부 L1] torch는 AI 모델의 텐서 계산과 CPU/GPU 실행을 맡는 라이브러리다.
+import torch
+# [공부 L2] 공유할 이미지 모델에 맞는 tokenizer를 준비하려고 기존 OpenCLIP 라이브러리를 가져온다.
+import open_clip
+
+
+
+# %% [markdown]
+# ### query_encoder/text_encoder.py · 4–34행
+#
+# 이미지 모델 객체와 tokenizer를 전달받아 공유한다. 한 문장도 (1, 512) 배열로 반환한다. 생성자가 모델 이름을 받는 예전 규격과 다르다.
+
+# %%
+# [공부 L4] class는 데이터와 관련 함수를 묶는 설계다. 이 클래스는 이미 받아 둔 사용자 입력 인코더이며 파일 인코더와
+# [공부 L4] 별개다.
+class KoreanTextEncoder:
+    # [공부 L5] 이미 만든 모델과 tokenizer를 인자로 받을 수 있다. 기본값 None은 전달받은 것이 없다는 뜻이다.
+    def __init__(self, model=None, tokenizer=None):
+        # [공부 L6] 조건부 표현식 A if 조건 else B다. 사용 가능한 CUDA GPU가 있으면 cuda, 없으면 cpu를 골라
+        # [공부 L6] 객체에 저장한다.
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # 외부에서 공통 모델을 넘겨주면 사용하고, 없으면 직접 로딩
+        # [공부 L9] 모델과 tokenizer를 모두 전달받았을 때 공유한다. and는 두 조건이 모두 참이어야 한다는 뜻이다.
+        if model is not None and tokenizer is not None:
+            # [공부 L10] 전달받은 모델 객체를 그대로 보관한다. 모델을 새로 복사하거나 다운로드하는 코드가 아니다.
+            self.model = model
+            # [공부 L11] 같은 모델에 맞춰 준비한 tokenizer 객체를 보관한다. 문장을 모델 입력 토큰 번호로 바꾸는 역할이다.
+            self.tokenizer = tokenizer
+        else:
+            # [공부 L13] 함수가 돌려주는 세 값을 나누어 받는다. 첫 값은 모델이고, 나머지 전처리 값 두 개는 여기서 쓰지 않아 _로
+            # [공부 L13] 받는다. 이때 캐시 로딩 또는 다운로드가 일어날 수 있다.
+            self.model, _, _ = open_clip.create_model_and_transforms(
+                'xlm-roberta-base-ViT-B-32', 
+                pretrained='laion5b_s13b_b90k'
+            )
+            # [공부 L17] 모델 계산 위치를 위에서 고른 CPU 또는 GPU로 옮긴다.
+            self.model.to(self.device)
+            self.tokenizer = open_clip.get_tokenizer('xlm-roberta-base-ViT-B-32')
+            
+        # [공부 L20] 모델을 추론 모드로 바꾼다. 학습 때만 필요한 일부 동작을 끄는 것으로, 아래 no_grad와 역할이 다르다.
+        self.model.eval()
+
+    # [공부 L22] 문장 하나 또는 문장 목록을 받는다. 새 규격은 입력이 하나여도 문장 수 × 벡터 길이의 2차원 배열을 반환한다.
+    def encode_text(self, text_list):
+        # 단일 문자열이 들어오면 리스트로 변환
+        if isinstance(text_list, str):
+            text_list = [text_list]
+
+        # [공부 L27] 문자열 목록을 모델 입력용 토큰 번호로 바꾸고, 모델과 같은 계산 장치로 옮긴다. 원래 문장과 tokens는 다른
+        # [공부 L27] 자료다.
+        tokens = self.tokenizer(text_list).to(self.device)
+
+        # [공부 L29] with 블록 안에서는 학습용 기울기를 기록하지 않는다. 이번 작업은 추론이므로 불필요한 계산과 메모리를 줄인다.
+        with torch.no_grad():
+            # [공부 L30] 이 줄이 실제 AI 추론이다. 토큰 번호에서 문장의 특징 숫자 배열을 계산한다. 파일 검색이나 DB 저장은 아직 하지
+            # [공부 L30] 않는다.
+            text_features = self.model.encode_text(tokens)
+            # 코사인 유사도 계산을 위한 벡터 정규화
+            # [공부 L32] /=는 계산 결과를 같은 변수에 다시 저장한다. 마지막 축의 벡터 길이로 나눠 길이를 1로 맞춘다.
+            # [공부 L32] keepdim=True는 나눗셈에 필요한 축 모양을 유지한다. 이것만으로 파일과의 유사도가 계산되는 것은 아니다.
+            text_features /= text_features.norm(dim=-1, keepdim=True)
+
+        # [공부 L34] 계산한 벡터를 CPU의 NumPy 배열로 바꾼다. 한 문장은 (1, 512), 여러 문장은 (문장 수, 512)이며 여기서는 첫 행을 꺼내지 않는다.
+        return text_features.cpu().numpy()
+
+
+# %% [markdown]
+# ### similarity/document_embedder.py · 1–3행
+#
+# 외부 model을 전달받거나 기본 본문 모델을 직접 준비한다. 본문 청크를 인코딩하고 같은 모델로 검색 문장을 비교한다.
+
+# %%
+# [공부 L1] 사전 학습 문장 임베딩 모델을 사용하는 도구다. 실제 모델은 생성자를 호출할 때 준비된다.
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+
+
+# %% [markdown]
+# ### similarity/document_embedder.py · 4–47행
+#
+# 외부 model을 전달받거나 기본 본문 모델을 직접 준비한다. 본문 청크를 인코딩하고 같은 모델로 검색 문장을 비교한다.
+
+# %%
+# [공부 L4] 문서 본문 인코딩과 입력 문장 인코딩, 코사인 유사도 검색이 이 클래스에 같이 있다. 파일 경로나 DB ID가 아니라
+# [공부 L4] DocumentChunk와 그 text를 중심으로 동작한다. 생성자 호출 시 새 ko-SRoBERTa 가중치가 필요할
+# [공부 L4] 수 있으나 이번 셀에서는 정의만 읽는다.
+class DocumentEmbedder:
+    """
+    DocumentLoader에서 추출한 DocumentChunk 텍스트 목록을 받아 
+    임베딩을 생성하고 코사인 유사도 검색을 수행하는 클래스
+    """
+    # [공부 L9] 본문 모델 객체가 전달되면 사용하고 없으면 model_name에 적힌 SentenceTransformer를 만든다. 이미지 모델과는 다른 종류의 모델이다.
+    def __init__(self, model=None, model_name='jhgan/ko-sroberta-multitask'):
+        # 공통 모델을 전달받으면 공유 사용하고, 없으면 직접 로딩
+        # [공부 L11] 외부에서 준비한 본문 모델이 있는지 확인한다. None과의 비교에는 is not을 사용한다.
+        if model is not None:
+            # [공부 L12] 전달받은 모델 객체를 그대로 보관한다. 모델을 새로 복사하거나 다운로드하는 코드가 아니다.
+            self.model = model
+        else:
+            # [공부 L14] 문서와 입력 문장을 같은 모델 공간에 놓을 모델을 만든다. 처음에는 모델 다운로드가 필요할 수 있다.
+            self.model = SentenceTransformer(model_name)
+            
+        # [공부 L16] 인코딩한 청크와 벡터의 행 위치를 맞춰 보관할 목록을 시작한다.
+        self.chunks = []
+        # [공부 L17] 아직 문서 벡터가 없다는 상태다. 빈 NumPy 배열과는 다르다.
+        self.embeddings = None
+
+    # [공부 L19] DocumentChunk 목록을 받아 각 chunk.text를 모델로 인코딩한다. 반환값을 주는 함수가 아니라
+    # [공부 L19] self.chunks와 self.embeddings 상태를 바꾸는 함수다.
+    def embed_chunks(self, chunks):
+        # DocumentChunk 객체 리스트에서 text만 추출하여 임베딩
+        # [공부 L21] 받은 청크 목록을 그대로 보관한다. 나중에 유사도가 높은 행 번호로 해당 청크를 찾는다.
+        self.chunks = chunks
+        # [공부 L22] 청크마다 text 속성을 가져오되 없는 속성의 기본값은 None이다. 빈 값은 인코딩 목록에서 제외한다. 연결 코드도 본문 청크만 넘겨 self.chunks와 결과 벡터의 순서를 맞춘다.
+        texts = [chunk.text for chunk in chunks if getattr(chunk, 'text', None)]
+        # [공부 L23] 본문 목록이 없으면 아래 encode를 하지 않는다. 원본은 이전 embeddings를 지우지는 않으므로 같은 객체
+        # [공부 L23] 재분석 정책을 붙일 때 주의해야 한다.
+        if not texts:
+            return
+            
+        # [공부 L26] 문장 목록을 N개 벡터의 배열로 만들고 객체에 보관한다. 파일별·페이지별 순서가 chunks와 같아야 한다.
+        self.embeddings = self.model.encode(texts)
+
+    # [공부 L28] query 문자열을 같은 모델로 인코딩한 뒤 보관한 청크 벡터들과 코사인 유사도를 계산한다. 반환값은 {chunk,
+    # [공부 L28] score} 딕셔너리의 목록이며 DB의 파일 ID를 직접 반환하지 않는다.
+    def search(self, query, top_k=3):
+        # [공부 L29] 분석 결과가 없을 때 검색하지 않고 빈 목록을 반환한다.
+        if self.embeddings is None or len(self.embeddings) == 0:
+            return []
+            
+        # [공부 L32] 사용자 문장도 바로 위와 같은 모델로 인코딩한다. 목록으로 입력하고 0번 결과 벡터를 꺼낸다.
+        query_vec = self.model.encode([query])[0]
+        
+        # 코사인 유사도 계산
+        # [공부 L35] 행마다 문서 벡터 길이를 계산한다. axis=1은 각 벡터의 성분 방향을 뜻한다.
+        norm_emb = np.linalg.norm(self.embeddings, axis=1)
+        # [공부 L36] 검색 문장 벡터의 길이를 계산한다.
+        norm_query = np.linalg.norm(query_vec)
+        
+        # [공부 L38] 내적을 양쪽 벡터 길이의 곱으로 나누는 코사인 유사도다. 1e-8은 분모가 0이 되는 경우를 줄이는 작은 수다.
+        # [공부 L38] 점수는 정확도나 확률이 아니다.
+        sims = np.dot(self.embeddings, query_vec) / (norm_emb * norm_query + 1e-8)
+        # [공부 L39] argsort는 점수 오름차순의 행 번호를 만든다. [::-1]로 역순, [:top_k]로 상위 개수만 고른다.
+        top_indices = np.argsort(sims)[::-1][:top_k]
+        
+        results = []
+        # [공부 L42] 순위가 높은 벡터의 행 번호를 하나씩 받는다. DB file_id와 같은 번호라고 가정하면 안 된다.
+        for idx in top_indices:
+            results.append({
+                # [공부 L44] 그 벡터 행에 대응하는 실제 DocumentChunk를 검색 결과에 넣는다.
+                "chunk": self.chunks[idx],
+                # [공부 L45] NumPy 점수를 Python 실수로 바꿔 결과에 넣는다. 점수를 다른 의미로 변환하지는 않는다.
+                "score": float(sims[idx])
+            })
+        return results
+
+
+# %% [markdown]
+# ### similarity/temporary_image_similarity.py · 1–4행
+#
+# 임시 구현된 이미지 유사도 검색이다. 문장과 이미지를 같은 모델로 인코딩한 뒤 비교하며, 담당자 구현을 받으면 교체한다.
+
+# %%
+"""임시 구현된 이미지 유사도 검색. 담당자 구현을 받으면 이 함수를 교체한다."""
+# [공부 L2] 숫자 배열 계산 라이브러리를 np라는 짧은 이름으로 가져온다.
+import numpy as np
+
+
+
+
+# %% [markdown]
+# ### similarity/temporary_image_similarity.py · 5–31행
+#
+# 임시 구현된 이미지 유사도 검색이다. 문장과 이미지를 같은 모델로 인코딩한 뒤 비교하며, 담당자 구현을 받으면 교체한다.
+
+# %%
+# [공부 L5] 검색 문장 벡터, (파일 번호, 이미지 벡터) 목록, 최대 결과 수를 받는다. 이미지나 모델을 읽는 함수가 아니라 이미 만들어진 숫자 배열만 비교한다.
+def search_images(query_vector, image_vectors, top_k=5):
+    # 1. 검색 문장 벡터를 숫자 배열로 준비한다.
+    # 이미지와 문장은 반드시 같은 OpenCLIP 모델·가중치로 만들어야 한다.
+    # [공부 L8] 리스트나 NumPy 배열을 실수 배열로 맞춘다. query에는 문장 의미를 나타내는 숫자가 들어 있다.
+    query = np.asarray(query_vector, dtype=float)
+    # [공부 L9] 벡터 길이를 계산한다. 뒤에서 내적을 길이로 나눠 방향의 유사도를 비교한다.
+    query_length = np.linalg.norm(query)
+    # [공부 L10] ndim은 배열의 차원 수다. 1차원이 아니거나 길이가 무한대·NaN·0이면 유효한 비교를 할 수 없어 오류로 알린다.
+    if query.ndim != 1 or not np.isfinite(query_length) or query_length == 0:
+        raise ValueError("검색 벡터는 길이가 0이 아닌 유효한 1차원 배열이어야 합니다.")
+
+    # 2. 파일별 가장 높은 점수를 보관한다. PPTX에 이미지가 여러 개여도
+    # 같은 파일이 결과에 여러 번 나오지 않도록 파일 번호를 열쇠로 쓴다.
+    # [공부 L15] 빈 딕셔너리를 만든다. 파일 번호를 열쇠로 쓰고 그 파일의 가장 높은 유사도 점수를 값으로 보관한다.
+    best_scores = {}
+    # [공부 L16] 목록의 각 튜플을 파일 번호와 이미지 벡터 두 변수로 나누어 받는다.
+    for file_id, image_vector in image_vectors:
+        # [공부 L17] 이미지 벡터도 실수 배열로 바꾼다. 파일 경로나 PIL 이미지가 아니라 인코더가 반환한 숫자 배열이다.
+        image = np.asarray(image_vector, dtype=float)
+        # [공부 L18] shape는 배열 모양이다. 두 벡터의 숫자 개수가 다르면 같은 좌표끼리 비교할 수 없으므로 오류로 알린다.
+        if image.shape != query.shape:
+            raise ValueError("이미지와 검색 문장 벡터의 차원이 다릅니다.")
+        # [공부 L20] 현재 이미지 벡터 길이를 계산한다.
+        image_length = np.linalg.norm(image)
+        # [공부 L21] 유효하지 않거나 길이가 0인 이미지 벡터는 비교 결과에 넣지 않는다.
+        if not np.isfinite(image_length) or image_length == 0:
+            # [공부 L22] 이번 반복의 나머지를 건너뛰고 목록의 다음 항목으로 넘어간다.
+            continue
+
+        # 3. 내적을 두 벡터 길이로 나누면 코사인 유사도가 된다.
+        # 방향이 비슷할수록 높은 점수다. 점수는 확률이 아니다.
+        # [공부 L26] dot은 같은 위치의 숫자를 곱해 더하는 내적이다. 두 벡터 길이의 곱으로 나누면 코사인 유사도가 된다. float으로 일반 Python 숫자로 반환한다.
+        score = float(np.dot(query, image) / (query_length * image_length))
+        # [공부 L27] 처음 보는 파일이거나 이전 이미지보다 점수가 높을 때만 값을 바꾼다. 한 PPTX의 그림 여러 개가 각각 결과로 중복 표시되는 것을 막는다.
+        if file_id not in best_scores or score > best_scores[file_id]:
+            # [공부 L28] 이 파일의 가장 높은 점수를 갱신한다.
+            best_scores[file_id] = score
+
+    # 4. (파일 번호, 점수)를 점수가 높은 순서로 정렬하고 top_k개만 반환한다.
+    # [공부 L31] items는 (번호, 점수) 묶음이다. lambda는 두 번째 값인 점수를 고르는 작은 함수다. reverse=True로 내림차순 정렬하고 슬라이스로 최대 top_k개만 반환한다.
+    return sorted(best_scores.items(), key=lambda item: item[1], reverse=True)[:max(0, top_k)]
+
+
+# %% [markdown]
+# ### connection/service.py · 1–10행
+#
+# 전달 전용 encode_query 함수를 제거했다. 본문 청크는 분석 중 지역 변수로 모으고 이후에는 본문 모델의 chunks를 사용한다. 이미지 검색은 입력 인코더를 직접 호출한다.
+
+# %%
+"""팀원 로더·인코더의 반환값을 파일 ID와 연결한다."""
+from datetime import datetime, timezone
+from hashlib import sha256
+from pathlib import Path
+
+# [공부 L6] database 폴더의 db_info 모듈에서 실제 DocumentInfo 클래스를 직접 가져온다. DB의 상대 import도 같은 클래스를 가리킨다.
+from database.db_info import DocumentInfo
+from file_loader.document_loader import DocumentScanner
+# [공부 L8] 임시 비교 모듈에서 함수를 가져온다. 담당자 구현을 받으면 이 연결을 교체한다.
+from similarity.temporary_image_similarity import search_images
+
+
+
+
+# %% [markdown]
+# ### connection/service.py · 11–114행
+#
+# 전달 전용 encode_query 함수를 제거했다. 본문 청크는 분석 중 지역 변수로 모으고 이후에는 본문 모델의 chunks를 사용한다. 이미지 검색은 입력 인코더를 직접 호출한다.
+
+# %%
+# [공부 L11] 내 연결 클래스다. 로더·인코더의 구현을 복사하지 않고 담당 객체를 보관하고 반환값을 다음 단계에 넘긴다.
+class DocumentSearch:
+    def __init__(self, loader, image_encoder, document_encoder,
+                 document_embedder, query_encoder, repository):
+        self.loader = loader
+        self.image_encoder = image_encoder
+        self.document_encoder = document_encoder
+        self.document_embedder = document_embedder
+        self.query_encoder = query_encoder
+        self.repository = repository
+        # [공부 L20] 경로로 찾은 청크가 어느 DB 파일인지 조회할 딕셔너리다. 청크 순번을 DB ID로 추측하지 않는다.
+        self.file_ids = {}  # 실제 파일 경로 → DB가 반환한 번호
+        # [공부 L21] 이미지 검색에 쓸 번호와 벡터를 함께 보관한다. 문서 본문 벡터를 이 목록에 섞지 않는다.
+        self.image_vectors = []  # (파일 번호, OpenCLIP 벡터)
+
+    # [공부 L23] 폴더를 받아 파일 읽기·모델 인코딩·메타데이터 저장까지 처리한다. 반환값은 성공 파일 목록과 읽기 실패 목록이다.
+    def analyze(self, folder_path):
+        # [공부 L24] 사용자 경로를 절대 경로로 맞춘다. 이후 로더 청크 경로와 DB 경로가 같은 기준이 된다.
+        folder = Path(folder_path).expanduser().resolve()
+        if not folder.is_dir():
+            raise ValueError("존재하는 폴더를 선택하세요.")
+        # [공부 L27] 이미 저장한 서비스에서 다시 저장하면 DB 경로 UNIQUE 오류가 날 수 있어 새 서비스로 재분석하도록 제한한다.
+        if self.file_ids:
+            raise ValueError("재분석은 새 서비스로 시작하세요.")
+
+        # [공부 L30] 정보 저장 후보, 읽기 실패, 파일별 이미지 벡터 묶음을 각각 담는다. 같은 순서의 documents와
+        # [공부 L30] pending_images를 마지막에 zip으로 묶는다.
+        documents, failures, pending_images = [], [], []
+        # [공부 L31] 함수 안의 지역 변수다. analyze 실행 중 본문을 모으는 데만 사용하고 서비스의 속성으로 중복 보관하지 않는다.
+        text_chunks = []  # 분석 중에만 모으고, 인코딩 후에는 본문 모델이 보관한다.
+        # [공부 L32] 팀원 스캐너의 generator에서 실제 지원 파일 경로를 하나씩 받는다.
+        for file_path in DocumentScanner(str(folder)).scan_files():
+            path = Path(file_path)
+            # 팀원 로더가 확장자를 보고 이미지·PDF·PPTX 읽기를 선택한다.
+            # [공부 L35] process_file에 경로 문자열을 넘긴다. 로더 안에서 확장자를 검사하므로 연결 코드에서 같은 검사를 반복할 필요가 없다. 반환값 chunks는 DocumentChunk 목록이다.
+            chunks = self.loader.process_file(str(path))
+            # [공부 L36] 저장된 본문 청크가 없으면 본문 검색 결과도 없으므로 빈 목록을 반환한다.
+            if not chunks:
+                failures.append((path, "읽을 본문이나 이미지가 없습니다."))
+                # [공부 L38] 이번 반복의 나머지를 건너뛰고 목록의 다음 항목으로 넘어간다.
+                continue
+
+            # 메타데이터를 DB 자료형에 맞추는 것은 내 연결 역할이다.
+            try:
+                # [공부 L42] 파일의 크기와 수정 시각을 조회한다. 본문을 읽는 별도 임시 로더를 다시 만드는 것이 아니다.
+                stat = path.stat()
+                # 항목 이름을 적어 DB에 어떤 값을 보내는지 바로 보이게 한다.
+                # [공부 L44] DocumentInfo 객체 하나에 파일 정보를 묶는다. 아래의 이름=값은 키워드 인자다. 위치 순서를 외우지 않아도 어떤 항목에 어떤 값이 들어가는지 읽을 수 있다.
+                info = DocumentInfo(
+                    # [공부 L45] Path 객체를 문자열로 바꾼다. DB의 file_path 칸에는 실제 파일의 절대 경로가 저장된다.
+                    file_path=str(path),
+                    # [공부 L46] name은 경로에서 파일 이름만 꺼내는 속성이다. 검색 결과 화면에 표시할 이름이다.
+                    file_name=path.name,
+                    # [공부 L47] suffix는 .pdf 같은 확장자다. lower()로 소문자로 맞춰 DB에 저장한다.
+                    file_extension=path.suffix.lower(),
+                    # [공부 L48] 앞에서 읽은 파일 상태 stat의 st_size는 파일 크기이며 단위는 바이트다.
+                    file_size=stat.st_size,
+                    # [공부 L49] 파일 바이트 전체를 읽어 SHA-256 문자열로 바꾼다. DB가 요구하는 파일 내용 식별값이다. 인코딩 벡터와는 별개다.
+                    file_hash=sha256(path.read_bytes()).hexdigest(),
+                    # [공부 L50] 현재 UTC 시각을 문자열로 만든다. 여기서는 파일 정보 등록 시각이며 실제 파일 생성 시각은 아니다.
+                    created_at=datetime.now(timezone.utc).isoformat(),
+                    # [공부 L51] 파일 시스템의 마지막 수정 시각을 UTC 문자열로 바꿔 저장한다.
+                    updated_at=datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                )
+            # [공부 L53] 파일 상태 조회·해시 읽기 실패만 읽기 실패로 기록한다. 아래 모델 오류는 여기서 숨기지 않는다.
+            except OSError as error:
+                failures.append((path, str(error)))
+                # [공부 L55] 이번 반복의 나머지를 건너뛰고 목록의 다음 항목으로 넘어간다.
+                continue
+
+            # 모델 오류는 읽기 실패로 숨기지 않고 호출자에게 전달한다.
+            vectors = []
+            # [공부 L59] 한 문서의 페이지/슬라이드별 청크를 하나씩 처리한다.
+            for chunk in chunks:
+                # [공부 L60] PIL 이미지가 들어 있는 청크에 대해서만 이미지 인코더를 사용한다.
+                if chunk.image is not None:
+                    # [공부 L61] 독립 이미지 파일은 ImageEncoder로, 문서에서 추출한 이미지는 DocumentEncoder로 보낸다.
+                    if chunk.chunk_type == 'image':
+                        # [공부 L62] 이미지 로더의 PIL 이미지를 실제 팀원 이미지 인코더에 전달한다.
+                        vectors.append(self.image_encoder.encode(chunk.image))
+                    else:
+                        # [공부 L64] PPTX 등에서 꺼낸 PIL 이미지를 실제 DocumentEncoder에 전달한다. 이 객체는 같은
+                        # [공부 L64] ImageEncoder를 공유한다.
+                        vectors.append(self.document_encoder.encode(chunk.image))
+            # [공부 L65] 이번 파일에서 본문이 있는 청크만 분석용 목록에 추가한다. 이미지 전용 청크는 본문 모델에 넘기지 않는다.
+            text_chunks.extend(chunk for chunk in chunks if chunk.text.strip())
+            documents.append(info)
+            pending_images.append(vectors)
+
+        # 본문은 원본 DocumentEmbedder가 청크 목록을 한 번에 인코딩한다.
+        # [공부 L70] 본문 청크가 한 개 이상 있을 때만 본문 인코딩을 호출한다.
+        if text_chunks:
+            # [공부 L71] 팀원 본문 모델에 목록을 넘긴다. 이 함수가 자신의 chunks와 embeddings에 보관하므로 연결 클래스가 같은 목록을 속성으로 계속 보관할 필요가 없다.
+            self.document_embedder.embed_chunks(text_chunks)
+
+        # [공부 L73] 각 파일 정보와 그 파일에서 만든 이미지 벡터 묶음을 같은 순서로 받는다.
+        for info, vectors in zip(documents, pending_images):
+            # [공부 L74] DB에 파일당 한 행을 저장하고 DB가 부여한 번호를 받는다. 여러 페이지라고 파일 경로를 여러 번 저장하지 않는다.
+            file_id = self.repository.save(info)
+            # [공부 L75] 본문 검색 결과의 chunk.file_path를 실제 DB ID로 바꿀 대응표를 만든다.
+            self.file_ids[info.file_path] = file_id
+            # [공부 L76] 파일에서 나온 이미지 벡터 모두에 같은 파일 ID를 붙인다.
+            self.image_vectors.extend((file_id, vector) for vector in vectors)
+        return documents, failures
+
+    # [공부 L79] 문장과 최대 파일 결과 수, 검색 대상을 받는다. 결과는 (DocumentInfo, 점수) 목록으로 동일하게
+    # [공부 L79] 반환한다.
+    def search(self, query, top_k=5, mode='documents'):
+        query = query.strip()
+        if not query or top_k <= 0:
+            return []
+
+        if mode == 'documents':
+            # [공부 L85] 본문 모델이 실제 보관 중인 청크 목록을 읽는다. 새로운 목록을 복사하는 것이 아니라 같은 목록을 가리키는 지역 이름이다.
+            chunks = self.document_embedder.chunks
+            # [공부 L86] 저장된 본문 청크가 없으면 본문 검색 결과도 없으므로 빈 목록을 반환한다.
+            if not chunks:
+                return []
+            # 원본 search는 입력 문장도 같은 ko-SRoBERTa로 인코딩한다.
+            # [공부 L89] 모든 본문 청크의 순위를 먼저 받아 뒤에서 파일별로 중복을 제거한다. len은 청크 수를 구한다.
+            hits = self.document_embedder.search(query, top_k=len(chunks))
+            ranked = []
+            seen = set()
+            for hit in hits:
+                # [공부 L93] 청크 안의 파일 경로를 DB 번호로 연결한다. 모델 배열 행 번호를 DB 번호로 사용하지 않는다.
+                file_id = self.file_ids[hit['chunk'].file_path]
+                # [공부 L94] 원본이 점수순으로 준 첫 결과가 해당 파일의 최고 점수이므로 같은 파일의 뒤 페이지 결과를 건너뛴다.
+                if file_id not in seen:
+                    ranked.append((file_id, hit['score']))
+                    seen.add(file_id)
+            ranked = ranked[:top_k]
+        elif mode == 'images':
+            # [공부 L99] 이미지 벡터가 하나도 없으면 검색할 이미지가 없다는 뜻이다. 문장 모델을 호출하지 않고 빈 목록을 반환한다.
+            if not self.image_vectors:
+                return []
+            # 임시 이미지 비교: 문장도 이미지와 같은 OpenCLIP 공간으로 바꾼다.
+            # 한 문장도 (1, 512)로 반환되므로 첫 행을 꺼낸다.
+            # [공부 L103] 한 번만 쓰던 encode_query 전달 함수를 없애고 여기서 입력 인코더를 직접 호출한다. (1, 512) 배열의 [0]으로 (512,) 문장 벡터를 꺼낸다.
+            query_vector = self.query_encoder.encode_text(query)[0]
+            # [공부 L104] 임시 함수가 (파일 번호, 점수) 목록을 높은 점수 순서로 반환한다. 이후 공통 DB 조회 코드가 파일 정보를 붙인다.
+            ranked = search_images(query_vector, self.image_vectors, top_k)
+        else:
+            raise ValueError("검색 대상은 documents 또는 images입니다.")
+
+        results = []
+        for file_id, score in ranked:
+            # [공부 L110] 최종 파일 번호로 같은 DB의 실제 이름·경로를 조회한다.
+            info = self.repository.find_by_id(file_id)
+            if info is None:
+                raise LookupError(f"DB에 파일 번호 {file_id}가 없습니다.")
+            # [공부 L113] 표시할 정보와 검색 점수를 묶는다. 점수는 확률이나 정확도 비율이 아니다.
+            results.append((info, score))
+        return results
+
+
+# %% [markdown]
+# ### gui/window.py · 1–6행
+#
+# 본문 검색은 팀원 함수, 이미지 검색은 임시 비교 함수로 연결한다. 화면과 콘솔에서 검색 대상을 선택한다.
+
+# %%
+"""문서 본문 검색과 임시 구현된 이미지 유사도 검색 화면."""
+# [공부 L2] GUI 창과 입력값을 담는 Tkinter 도구를 tk라는 이름으로 사용한다.
+import tkinter as tk
+# [공부 L3] filedialog는 폴더 선택 대화상자, ttk는 버튼·입력창·라벨 같은 화면 부품이다.
+from tkinter import filedialog, ttk
+
+
+# %% 1. 화면 준비
+
+
+# %% [markdown]
+# ### gui/window.py · 7–99행
+#
+# 본문 검색은 팀원 함수, 이미지 검색은 임시 비교 함수로 연결한다. 화면과 콘솔에서 검색 대상을 선택한다.
+
+# %%
+# [공부 L7] 화면 상태와 버튼 동작을 묶는다. 모델·비교 수식은 구현하지 않고 전달받은 서비스 함수를 호출한다.
+class DocumentSearchApp:
+    # [공부 L8] 최상위 창 root와 연결 도구를 만들어 줄 함수 service_factory를 받는다. 이 함수가 실행되면서 화면
+    # [공부 L8] 부품을 배치한다.
+    def __init__(self, root, service_factory):
+        # [공부 L9] 나중에 폴더 선택창의 부모 지정과 화면 갱신에 쓰려고 최상위 창을 보관한다.
+        self.root = root
+        # [공부 L10] app.py의 build_service 함수 자체를 보관한다. () 없이 전달하므로 아직 실제 모델을 읽지 않는다.
+        self.service_factory = service_factory
+        # [공부 L11] 이전 폴더의 서비스로 새 폴더를 검색하지 않도록 연결 상태를 초기화한다. analyze 시작·폴더 변경에서도 같은
+        # [공부 L11] 의미다.
+        self.service = None
+        # [공부 L12] 화면에서 선택한 폴더 경로와 연결할 문자열 저장소다. .set으로 바꾸고 .get으로 읽는다.
+        self.folder = tk.StringVar()
+        # [공부 L13] 검색 입력창과 연결할 문자열 저장소다.
+        self.query = tk.StringVar()
+        # [공부 L14] 검색 대상 선택값을 화면 변수로 보관한다. 처음 선택값은 문서 본문이다.
+        self.mode = tk.StringVar(value="문서 본문")
+        self.status = tk.StringVar(value="폴더 선택 → 분석 → 검색")
+
+        # [공부 L17] 창 제목을 설정한다.
+        root.title("코드·문서 검색")
+        # [공부 L18] 처음 창 크기를 가로 760, 세로 480 픽셀로 설정한다.
+        root.geometry("760x480")
+        # [공부 L19] 창 안에 화면 부품을 담을 영역을 만들고 가장자리 여백을 둔다.
+        frame = ttk.Frame(root, padding=16)
+        # [공부 L20] frame을 화면에 배치하고 창이 커질 때 가로·세로를 채우게 한다.
+        frame.pack(fill="both", expand=True)
+
+        ttk.Label(frame, text="문서 본문 검색 / 이미지 유사도 검색(임시 구현)").pack(anchor="w")
+        # [공부 L23] 고정 text가 아니라 folder 변수의 현재 값을 보여 준다. pady는 위아래 여백이다.
+        ttk.Label(frame, textvariable=self.folder).pack(anchor="w", pady=6)
+        # [공부 L24] 버튼을 누르면 select_folder를 호출한다. command에 함수 이름을 넘기며 ()를 쓰지 않아 지금 당장
+        # [공부 L24] 실행하지 않는다.
+        ttk.Button(frame, text="폴더 선택", command=self.select_folder).pack(anchor="w")
+        # [공부 L25] 분석 버튼과 analyze 메서드를 연결한다.
+        ttk.Button(frame, text="분석", command=self.analyze).pack(anchor="w", pady=6)
+
+        # [공부 L27] 사용자가 입력하는 문장이 self.query와 연결된다. fill=x는 가로로 공간을 채우라는 배치 옵션이다.
+        ttk.Entry(frame, textvariable=self.query).pack(fill="x")
+        ttk.Combobox(frame, textvariable=self.mode, values=("문서 본문", "이미지 유사도 검색(임시 구현)"), state="readonly").pack(anchor="w")
+        # [공부 L29] 검색 버튼을 만들되 분석 완료 전에는 누를 수 없게 한다. 나중에 상태를 바꾸려고 객체를 self에 보관한다.
+        self.search_button = ttk.Button(frame, text="검색", command=self.search, state="disabled")
+        # [공부 L30] 만든 검색 버튼을 실제 화면에 배치한다. 버튼 생성과 배치는 별개다.
+        self.search_button.pack(anchor="w", pady=6)
+        # [공부 L31] self.status.set(...)을 호출하면 이 상태 문구가 바뀐다.
+        ttk.Label(frame, textvariable=self.status).pack(anchor="w")
+
+        # [공부 L33] 여러 줄 결과창이다. 단어 단위로 줄바꿈하며, 사용자가 내용을 고치지 못하게 잠근다.
+        self.output = tk.Text(frame, height=12, wrap="word", state="disabled")
+        # [공부 L34] 결과창이 남은 공간을 채우도록 배치한다.
+        self.output.pack(fill="both", expand=True, pady=6)
+
+    # [공부 L36] 사용자가 폴더 선택 버튼을 눌렀을 때 실행되는 함수다.
+    def select_folder(self):
+        # 2. 폴더 변경 시 이전 검색 상태를 지운다.
+        # [공부 L38] 폴더 선택 대화상자를 열어 경로 문자열을 받는다. 취소하면 빈 문자열이 돌아온다.
+        path = filedialog.askdirectory(parent=self.root)
+        # [공부 L39] 실제로 폴더를 선택했을 때만 아래 초기화를 수행한다.
+        if path:
+            # [공부 L40] 선택 경로를 화면 변수에 넣어 라벨에도 표시한다.
+            self.folder.set(path)
+            # [공부 L41] 이전 폴더의 서비스로 새 폴더를 검색하지 않도록 연결 상태를 초기화한다. analyze 시작·폴더 변경에서도 같은
+            # [공부 L41] 의미다.
+            self.service = None
+            # [공부 L42] 검색 준비가 안 되었거나 분석을 다시 시작했으므로 검색 버튼을 잠근다.
+            self.search_button.configure(state="disabled")
+            # [공부 L43] 이전 결과 또는 실패 안내가 새 작업 결과처럼 보이지 않도록 결과창을 비운다.
+            self.show_text("")
+            # [공부 L44] 다음에 할 동작을 상태 문구에 표시한다.
+            self.status.set("분석 버튼을 누르세요.")
+
+    # [공부 L46] 분석 버튼의 처리 함수다. 실제 순서는 connection.DocumentSearch.analyze에 맡긴다.
+    def analyze(self):
+        # 3. 실제 로더·인코더·DB 연결을 실행하고 오류는 화면에 알린다.
+        # [공부 L48] StringVar에 저장된 폴더 경로를 꺼내 빈 값인지 검사한다.
+        if not self.folder.get():
+            # [공부 L49] 입력 순서가 맞지 않으면 안내만 표시한다.
+            self.status.set("폴더를 먼저 선택하세요.")
+            # [공부 L50] 현재 버튼 처리 함수를 끝내서 준비되지 않은 뒤 작업을 실행하지 않는다.
+            return
+
+        # [공부 L52] 이전 폴더의 서비스로 새 폴더를 검색하지 않도록 연결 상태를 초기화한다. analyze 시작·폴더 변경에서도 같은
+        # [공부 L52] 의미다.
+        self.service = None
+        # [공부 L53] 검색 준비가 안 되었거나 분석을 다시 시작했으므로 검색 버튼을 잠근다.
+        self.search_button.configure(state="disabled")
+        # [공부 L54] 이전 결과 또는 실패 안내가 새 작업 결과처럼 보이지 않도록 결과창을 비운다.
+        self.show_text("")
+        # [공부 L55] 동작을 시작하기 전에 상태 문구를 바꾼다. 현재 단순한 GUI는 모델 실행 중 화면 응답을 기다려야 한다.
+        self.status.set("실제 모델 준비·파일 분석 중입니다. 완료까지 기다려 주세요.")
+        # [공부 L56] 바뀐 화면 문구 등을 그리는 밀린 일을 처리한다. 작업을 별도 스레드로 만드는 함수가 아니므로 화면 멈춤을 해결하는
+        # [공부 L56] 것은 아니다.
+        self.root.update_idletasks()
+
+        # [공부 L58] 버튼에서 호출한 작업의 오류를 화면에 표시하기 위한 시도 구간이다.
+        try:
+            service = self.service_factory()
+            saved_files, failures = service.analyze(self.folder.get())
+        # [공부 L61] 화면 경계에서는 작업 오류를 받아 문자열로 보여 준다. 연결 함수 안에서 오류를 성공처럼 바꾸는 것과 다르다.
+        except Exception as error:
+            self.status.set(f"분석 실패: {error}")
+            # [공부 L63] 현재 버튼 처리 함수를 끝내서 준비되지 않은 뒤 작업을 실행하지 않는다.
+            return
+
+        # [공부 L65] 분석이 정상 반환한 경우에만 검색에 쓸 같은 서비스 객체를 보관한다.
+        self.service = service
+        self.search_button.configure(state="normal")
+        # [공부 L67] len은 목록 원소 수다. 성공과 읽기 실패 개수를 구분해 표시한다.
+        self.status.set(f"저장 {len(saved_files)}개 / 읽기 실패 {len(failures)}개")
+        # [공부 L68] 결과창에 넣을 문장들을 먼저 목록으로 모은다.
+        lines = []
+        # [공부 L69] 읽기 실패 목록의 각 튜플을 경로와 이유 두 값으로 풀어 받는다.
+        for path, reason in failures:
+            # [공부 L70] 실패 경로의 파일 이름과 이유를 표시할 문장으로 만든다.
+            lines.append(f"읽기 실패: {path.name} / {reason}")
+        self.show_text("\n".join(lines))
+
+    # [공부 L73] 검색 버튼의 처리 함수다. 실제 입력 인코딩·비교·파일 조회 순서는 서비스에 맡긴다.
+    def search(self):
+        # 4. 같은 인코더·DB로 검색하고 실제 이름과 경로를 표시한다.
+        # [공부 L75] 분석 결과 서비스가 없으면 아직 검색할 수 없다.
+        if self.service is None:
+            # [공부 L76] 현재 버튼 처리 함수를 끝내서 준비되지 않은 뒤 작업을 실행하지 않는다.
+            return
+        # [공부 L77] 검색창 값을 읽어 공백뿐인 문장인지 검사한다.
+        if not self.query.get().strip():
+            # [공부 L78] 빈 입력이면 모델을 호출하지 않고 안내한다.
+            self.status.set("검색 문장을 입력하세요.")
+            # [공부 L79] 현재 버튼 처리 함수를 끝내서 준비되지 않은 뒤 작업을 실행하지 않는다.
+            return
+
+        # [공부 L81] 이전 결과 또는 실패 안내가 새 작업 결과처럼 보이지 않도록 결과창을 비운다.
+        self.show_text("")
+        # [공부 L82] 버튼에서 호출한 작업의 오류를 화면에 표시하기 위한 시도 구간이다.
+        try:
+            # [공부 L83] 콤보박스의 한글 선택값을 서비스가 받는 documents 또는 images로 바꾼다.
+            mode = 'documents' if self.mode.get() == '문서 본문' else 'images'
+            # [공부 L84] 분석에 사용한 서비스에 입력 문장과 검색 대상을 전달한다.
+            results = self.service.search(self.query.get(), mode=mode)
+        # [공부 L85] 화면 경계에서는 작업 오류를 받아 문자열로 보여 준다. 연결 함수 안에서 오류를 성공처럼 바꾸는 것과 다르다.
+        except Exception as error:
+            # [공부 L86] 비교·조회 등의 작업을 마치지 못한 이유를 화면에 알린다.
+            self.status.set(f"검색 실패: {error}")
+            # [공부 L87] 현재 버튼 처리 함수를 끝내서 준비되지 않은 뒤 작업을 실행하지 않는다.
+            return
+
+        # [공부 L89] 결과창에 넣을 문장들을 먼저 목록으로 모은다.
+        lines = []
+        # [공부 L90] 추후 서비스가 돌려줄 (파일 정보, 점수) 쌍을 하나씩 꺼낸다.
+        for info, score in results:
+            lines.append(f"{info.file_name} / 유사도 {score:.4f}\n{info.file_path}\n")
+        self.show_text("\n".join(lines))
+        self.status.set(f"검색 결과 {len(results)}개")
+
+    # [공부 L95] 분석 안내와 검색 결과가 공통으로 사용하는 결과창 갱신 함수다.
+    def show_text(self, text):
+        # [공부 L96] 잠근 결과창을 잠시 편집 가능 상태로 만든다.
+        self.output.configure(state="normal")
+        # [공부 L97] Tk Text의 1행 0번 문자부터 끝까지 기존 내용을 지운다. Python 배열의 인덱스 문자열이 아니라 Tk
+        # [공부 L97] Text의 위치 표기다.
+        self.output.delete("1.0", "end")
+        # [공부 L98] 결과창 처음에 새 문자열을 넣는다.
+        self.output.insert("1.0", text)
+        # [공부 L99] 갱신을 마친 뒤 사용자 편집을 다시 막는다.
+        self.output.configure(state="disabled")
+
+
+# %% [markdown]
+# ### app.py · 1–14행
+#
+# ImageEncoder를 만든 뒤 그 모델 객체와 tokenizer를 KoreanTextEncoder에 전달한다. DocumentEncoder도 같은 이미지 인코더를 공유하고, 본문 모델은 별도로 준비한다.
+
+# %%
+"""실제 팀원 로더·인코더·DB를 조립하여 실행한다."""
+from pathlib import Path
+from tempfile import TemporaryDirectory
+# [공부 L4] 공유할 이미지 모델에 맞는 tokenizer를 준비하려고 기존 OpenCLIP 라이브러리를 가져온다.
+import open_clip
+
+from file_loader.document_loader import DocumentLoader
+from file_encoder.image_encoder import ImageEncoder
+from file_encoder.document_encoder import DocumentEncoder
+from similarity.document_embedder import DocumentEmbedder
+from query_encoder.text_encoder import KoreanTextEncoder
+from database.db_manager import Repository
+from connection.service import DocumentSearch
+
+
+
+
+# %% [markdown]
+# ### app.py · 15–36행
+#
+# ImageEncoder를 만든 뒤 그 모델 객체와 tokenizer를 KoreanTextEncoder에 전달한다. DocumentEncoder도 같은 이미지 인코더를 공유하고, 본문 모델은 별도로 준비한다.
+
+# %%
+def build_service():
+    # 이미지와 이미지 검색 문장은 같은 OpenCLIP 모델·가중치를 사용한다.
+    model_name = 'xlm-roberta-base-ViT-B-32'
+    pretrained = 'laion5b_s13b_b90k'
+    image_encoder = ImageEncoder(model_name=model_name, pretrained=pretrained)
+    # [공부 L20] 이미 만든 ImageEncoder를 전달하여 문서 이미지와 독립 이미지가 같은 이미지 모델 객체를 사용한다.
+    document_encoder = DocumentEncoder(image_encoder=image_encoder)
+    # 새 입력 인코더는 이미지 모델을 공유한다. 같은 모델을 두 번 읽지 않는다.
+    # [공부 L22] 새 입력 인코더는 이미지 모델을 공유하므로 모델을 한 번 더 읽지 않는다. 아래 두 인자로 같은 모델과 tokenizer를 넘긴다.
+    query_encoder = KoreanTextEncoder(
+        # [공부 L23] ImageEncoder 안에 준비된 실제 OpenCLIP 모델 객체를 그대로 전달한다.
+        model=image_encoder.model,
+        # [공부 L24] 이미지 모델 이름에 맞는 tokenizer를 만들고 입력 인코더에 전달한다.
+        tokenizer=open_clip.get_tokenizer(model_name),
+    )
+
+    # 문서 본문은 별도 ko-SRoBERTa로 인코딩·비교한다.
+    # [공부 L28] 본문용 ko-SRoBERTa를 실제로 생성한다. 첫 실행은 가중치 다운로드가 필요할 수 있다.
+    document_embedder = DocumentEmbedder()
+    session = TemporaryDirectory(prefix='document-search-')
+    repository = Repository(str(Path(session.name) / 'document_metadata.db'))
+    # [공부 L31] 팀원의 실제 로더와 두 이미지 경로를 내 연결 클래스에 전달한다. 다음 줄에는 본문 인코더·이미지 입력 인코더·DB를
+    # [공부 L31] 전달한다.
+    service = DocumentSearch(DocumentLoader(), image_encoder, document_encoder,
+                             document_embedder, query_encoder, repository)
+    service.session_directory = session
+    return service
+
+
+
+
+# %% [markdown]
+# ### app.py · 37–58행
+#
+# ImageEncoder를 만든 뒤 그 모델 객체와 tokenizer를 KoreanTextEncoder에 전달한다. DocumentEncoder도 같은 이미지 인코더를 공유하고, 본문 모델은 별도로 준비한다.
+
+# %%
+def main():
+    folder = input('분석할 폴더: ').strip().strip('"')
+    if not Path(folder).is_dir():
+        raise ValueError('존재하는 폴더를 입력하세요.')
+    print('실제 모델 준비·분석 중입니다. 첫 실행은 모델 다운로드가 필요할 수 있습니다.')
+    service = build_service()
+    documents, failures = service.analyze(folder)
+    print(f'저장 {len(documents)}개 / 읽기 실패 {len(failures)}개')
+    for path, reason in failures:
+        print(f'{path.name}: {reason}')
+    while True:
+        query = input('검색 문장 (Enter로 종료): ').strip()
+        if not query:
+            break
+        # [공부 L51] 조건식이 참이면 images, 아니면 documents 문자열을 선택한다. i는 임시 이미지 검색, Enter는 본문 검색이다.
+        mode = 'images' if input('이미지 유사도 검색(임시 구현)은 i, 본문 검색은 Enter: ').strip() == 'i' else 'documents'
+        # [공부 L52] 선택한 대상과 문장을 전달해 결과 목록을 받는다. 두 모델의 점수를 합치는 검색은 하지 않는다.
+        results = service.search(query, mode=mode)
+        for info, score in results:
+            print(f'{info.file_name} / {score:.4f}\n{info.file_path}')
+        if not results:
+            print('해당 검색 대상의 결과가 없습니다.')
+
+
+
+
+# %% [markdown]
+# ### app.py · 59–68행
+#
+# ImageEncoder를 만든 뒤 그 모델 객체와 tokenizer를 KoreanTextEncoder에 전달한다. DocumentEncoder도 같은 이미지 인코더를 공유하고, 본문 모델은 별도로 준비한다.
+
+# %%
+if __name__ == '__main__':
+    import sys
+    if '--gui' in sys.argv:
+        import tkinter as tk
+        from gui.window import DocumentSearchApp
+        root = tk.Tk()
+        DocumentSearchApp(root, build_service)
+        root.mainloop()
+    else:
+        main()
+
+
+# %% [markdown]
+# ### 실행 1: 실제 모델과 DB 준비
+#
+# build_service를 호출하면 여기서 실제 모델을 읽는다. 모델이 캐시에 없으면 다운로드가 필요하다. 객체 정의 셀과 실제 생성 셀은 다르다.
+
+# %%
+service = build_service()
+print('실제 로더·본문 모델·이미지 모델·DB 준비 완료')
+
+
+# %% [markdown]
+# ### 실행 2: 실제 폴더 분석
+#
+# 팀원 스캐너·로더를 호출해 청크를 읽고, 데이터 종류별 인코더에 전달한다. 파일 정보는 DB에 한 번만 저장한다. 재분석하려면 새 서비스 생성 셀부터 실행한다.
+
+# %%
+folder_path = input('분석할 폴더: ').strip().strip('"')
+documents, failures = service.analyze(folder_path)
+print('저장:', len(documents), '읽기 실패:', len(failures))
+for path, reason in failures:
+    print(path.name, reason)
+
+
+# %% [markdown]
+# ### 실행 3: 문서 본문 검색
+#
+# 팀원 DocumentEmbedder가 같은 ko-SRoBERTa로 문장과 본문을 비교한다. 페이지가 여러 개라도 파일당 최고 점수 하나만 표시한다.
+
+# %%
+query = input('본문 검색 문장: ').strip()
+document_results = service.search(query, mode='documents')
+for info, score in document_results:
+    print(info.file_name, score, info.file_path)
+
+
+# %% [markdown]
+# ### 실행 4: 이미지 유사도 검색(임시 구현)
+#
+# 같은 모델로 만든 검색 문장·이미지 벡터를 임시 함수가 비교한다. JPG·PNG 또는 PPTX 내부 이미지가 분석돼 있어야 결과가 나온다. 점수는 확률이 아니다.
+
+# %%
+query = input('이미지 검색 문장: ').strip()
+image_results = service.search(query, mode='images')
+for info, score in image_results:
+    print(info.file_name, score, info.file_path)
+
+
